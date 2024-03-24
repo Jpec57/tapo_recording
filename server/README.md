@@ -32,16 +32,3 @@ pkill ffmpeg
 
 
 chmod +x stream_control.sh
-
-
-# Amazon 
-
-TODO
-https://www.c-sharpcorner.com/article/creating-an-alexa-skill-that-calls-an-api/
-
-
-https://developer.amazon.com/en-US/blogs/alexa/alexa-skills-kit/2019/06/how-to-make-an-api-request-from-your-alexa-skill-using-python
-
-NodeJS
-
-https://www.npmjs.com/package/ask-sdk
