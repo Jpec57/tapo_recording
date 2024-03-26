@@ -1,5 +1,22 @@
 # Tapo
 
+## Docker
+
+```
+docker build -t tapo-image .
+```
+
+```
+docker run -p 3000:3000 tapo-image
+```
+
+```
+docker ps # get container id
+docker stop <id>
+```
+
+
+
 ## Url
 
 For high quality stream1: rtsp://IP Address/stream1
@@ -32,3 +49,4 @@ pkill ffmpeg
 
 
 chmod +x stream_control.sh
+

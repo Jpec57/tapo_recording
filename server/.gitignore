@@ -2,3 +2,8 @@
 .DS_Store
 .history
 .history/*
+dist/*
+node_modules
+node_modules/
+*.log
+*.mp4
