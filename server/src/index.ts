@@ -14,6 +14,9 @@ const killAll = (): void => {
   spawn('pkill', ['ffmpeg']);
 };
 
+app.get('/', (req: Request, res: Response): void => {
+  res.send('Hello');
+});
 app.get('/start', (req: Request, res: Response): void => {
   const duration: number = req.query.duration
     ? parseInt(req.query.duration as string, 10)
