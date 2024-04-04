@@ -12,6 +12,17 @@ docker run -p 3057:3057 tapo-image
 ```
 
 ```
+docker run -d -v /home/jpec/recordings:/usr/src/app --restart=on-failure -p 3057:3057 tapo-image
+```
+
+- no: This is the default value. It means that Docker will not automatically restart the container. You need to manually restart it if it exits.
+- always: Docker will always restart the container regardless of the exit status.
+- on-failure: Docker will only restart the container if it exits with a non-zero exit status.
+- unless-stopped: Docker will always restart the container unless it is explicitly stopped by the user.
+
+
+
+```
 docker ps # get container id
 docker stop <id>
 ```
