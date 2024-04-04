@@ -1,5 +1,12 @@
 # Tapo
 
+```
+docker build -t tapo-base -f BaseDockerfile .
+docker build -t tapo-image . --no-cache
+```
+
+
+
 ## Docker
 
 ```

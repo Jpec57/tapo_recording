@@ -10,15 +10,16 @@ const startStream = (duration: number): void => {
   const logFileName: string = getTimeFilename('.log');
   const pidFilePath = getPidFilePath();
   const rtspUrl = getRtspUrl();
-  console.log(rtspUrl);
+  
+  console.log({ outputFileName });
 
   //ChildProcessWithoutNullStreams
   const ffmpegProcess = spawn(
     'ffmpeg',
     ['-i', rtspUrl, '-c:v', 'copy', '-an', '-f', 'mp4', outputFileName],
     {
-      detached: true,
-      stdio: ['ignore', 'pipe', 'pipe'] // Redirect stdio to ignore input, pipe stdout and stderr
+      detached: true
+      // stdio: ['ignore', 'pipe', 'pipe'] // Redirect stdio to ignore input, pipe stdout and stderr
     }
   );
 
@@ -36,6 +37,12 @@ const startStream = (duration: number): void => {
   const logStream: fs.WriteStream = fs.createWriteStream(logFileName);
   ffmpegProcess.stdout.pipe(logStream);
   ffmpegProcess.stderr.pipe(logStream);
+  ffmpegProcess.stdout.on('data', data => {
+    console.log(data.toString()); // Log ffmpeg output to console
+  });
+  ffmpegProcess.stderr.on('data', data => {
+    console.error(data.toString()); // Log ffmpeg errors to console
+  });
   ffmpegProcess.unref(); // Allow the parent process to exit independently of the child process
 
   // Start a timeout to stop the stream after the specified duration
