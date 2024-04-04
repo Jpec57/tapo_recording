@@ -4,6 +4,11 @@ FROM node:14
 # Set working directory inside the container
 WORKDIR /usr/src/app
 
+# Install ffmpeg
+RUN apt-get update && \
+    apt-get install -y ffmpeg && \
+    apt-get clean
+    
 # Copy package.json and package-lock.json (if available)
 COPY package*.json ./
 

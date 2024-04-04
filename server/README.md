@@ -3,11 +3,12 @@
 ## Docker
 
 ```
-docker build -t tapo-image .
+docker build -t tapo-image . 
+docker build -t tapo-image . --no-cache
 ```
 
 ```
-docker run -p 3000:3000 tapo-image
+docker run -p 3057:3057 tapo-image
 ```
 
 ```
