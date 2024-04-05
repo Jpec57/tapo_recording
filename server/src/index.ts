@@ -5,19 +5,90 @@ import startStream from './utils/stream/startStream';
 import stopStream from './utils/stream/stopStream';
 import ffmpeg from 'fluent-ffmpeg';
 import getRtspUrl, { StreamQuality } from './utils/stream/getRtspUrl';
-import { WritableStreamBuffer } from 'stream-buffers';
 import getTimeFilename from './utils/getTimeFilename';
+import path from 'path';
+const Stream = require('node-rtsp-stream');
+import WebSocket, { WebSocketServer } from 'ws';
 
 const app: express.Application = express();
 const PORT: number | string = process.env.PORT || 3000;
 config({ path: '.env.local' });
 
+const publicDirectoryPath = path.join(__dirname, '../public');
+app.use(express.static(publicDirectoryPath));
+
 const DEFAULT_DURATION: number = 5 * 60; // 5 minutes
+
+
+// const wsServer = new WebSocketServer({
+//   port: 9999,
+// });
+
+// wsServer.on('connection', (ws) => {
+
+//   ws.on('open', function open() {
+//     if (!rtspStream) {
+//       // Start streaming if it's not already started
+//       const streamConfig = {
+//         name: 'JpecStream',
+//         streamUrl: getRtspUrl(),
+//         wsPort: 9999,
+//         ffmpegOptions: {
+//           '-stats': '',
+//           '-r': 30
+//         }
+//       };
+//       rtspStream = new Stream(streamConfig);
+//     }
+//   });
+  
+
+// // ws.on('message', function message(data) {
+// //   console.log('received: %s', data);
+// // });
+
+//   ws.on('error', console.error);
+
+
+//   ws.on('close', () => {
+//     // Stop streaming when WebSocket connection closes
+//     if (rtspStream) {
+//       rtspStream.stop();
+//       rtspStream = null;
+//     }
+//   });
+// });
+
+
+
+
+
+let rtspStream: any = null;
+app.get('/stream', (req: Request, res: Response): void => {
+
+  // wsServer.emit('connection');
+
+  const streamConfig = {
+    name: 'JpecStream',
+    streamUrl: getRtspUrl(),
+    wsPort: 9999, // Port for WebSocket streaming
+    ffmpegOptions: {
+      // options ffmpeg flags
+      '-stats': '', // an option with no neccessary value uses a blank string
+      '-r': 30 // options with required values specify the value after the key
+    }
+  };
+  rtspStream = new Stream(streamConfig);
+  res.sendFile(path.join(__dirname, '../public', 'stream.html'));
+});
 
 const killAll = (): void => {
   spawn('pkill', ['ffmpeg']);
 };
 
+app.get('/stopStream', (req: Request, res: Response): void => {
+  rtspStream?.stop();
+});
 app.get('/', (req: Request, res: Response): void => {
   res.send('Hello');
 });
@@ -27,70 +98,12 @@ app.get('/start', (req: Request, res: Response): void => {
     ? parseInt(req.query.duration as string, 10)
     : DEFAULT_DURATION;
   startStream(duration, res);
-  // res.send('Stream started...');
-});
-
-app.get('/stream', (req: Request, res: Response): void => {
-  res.writeHead(200, {
-    'Content-Type': 'video/mp4',
-    Connection: 'keep-alive',
-    'Transfer-Encoding': 'chunked'
-  });
-
-  const rtspStream = ffmpeg(getRtspUrl(StreamQuality.High))
-    // .output('outputfile.mp4') // Output to file
-    // .output('pipe:1') // Output to stream
-    .format('mpegts') // Specify output format
-    .outputOptions(['-movflags isml+frag_keyframe'])
-    .on('error', (err, stdout, stderr) => {
-      console.error('FFmpeg error:', err);
-      console.error('FFmpeg stdout:', stdout);
-      console.error('FFmpeg stderr:', stderr);
-      if (!res.headersSent) {
-        res.status(500).send('Internal server error');
-      } else {
-        console.error(
-          'Response headers already sent, cannot send error response.'
-        );
-      }
-      // Kill the FFmpeg process if an error occurs
-      rtspStream.kill('SIGKILL');
-    })
-    .on('end', () => {
-      console.log('Finished processing');
-    });
-  rtspStream.pipe(res);
-});
-
-app.get('/start2', (req: Request, res: Response): void => {
-  const rtspStream = ffmpeg(getRtspUrl(StreamQuality.High))
-    .output(getTimeFilename('.mp4')) // Output to file
-    .format('mp4') // Specify output format
-    .on('error', (err, stdout, stderr) => {
-      console.error('FFmpeg error:', err);
-      console.error('FFmpeg stdout:', stdout);
-      console.error('FFmpeg stderr:', stderr);
-      if (!res.headersSent) {
-        res.status(500).send('Internal server error');
-      } else {
-        console.error(
-          'Response headers already sent, cannot send error response.'
-        );
-      }
-      // Kill the FFmpeg process if an error occurs
-      rtspStream.kill('SIGKILL');
-    })
-    .on('end', () => {
-      console.log('Finished processing');
-    });
-  // Run FFmpeg process
-  rtspStream.run();
-  res.send('Stream started');
 });
 
 app.get('/stop', (req: Request, res: Response): void => {
   stopStream(null);
   res.send('Stream stopped');
+  res.end();
 });
 
 app.get('/killall', (req: Request, res: Response): void => {
