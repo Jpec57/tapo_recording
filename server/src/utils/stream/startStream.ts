@@ -1,16 +1,17 @@
 import { spawn } from 'child_process';
+import { Response } from 'express';
 import getTimeFilename from '../getTimeFilename';
 import fs from 'fs';
 import stopStream from './stopStream';
 import getPidFilePath from './getPidFilePath';
 import getRtspUrl from './getRtspUrl';
 
-const startStream = (duration: number): void => {
+const startStream = (duration: number, res: Response): void => {
   const outputFileName: string = getTimeFilename('.mp4');
   const logFileName: string = getTimeFilename('.log');
   const pidFilePath = getPidFilePath();
   const rtspUrl = getRtspUrl();
-  
+
   console.log({ outputFileName });
 
   //ChildProcessWithoutNullStreams
@@ -43,6 +44,20 @@ const startStream = (duration: number): void => {
   ffmpegProcess.stderr.on('data', data => {
     console.error(data.toString()); // Log ffmpeg errors to console
   });
+  //todo
+  const outputRes = false;
+  if (outputRes) {
+    res.writeHead(200, {
+      'Content-Type': 'video/mp4',
+      Connection: 'keep-alive',
+      'Transfer-Encoding': 'chunked'
+    });
+    ffmpegProcess.stdout.pipe(res);
+  } else {
+    res.send('Start recording');
+  }
+
+  //
   ffmpegProcess.unref(); // Allow the parent process to exit independently of the child process
 
   // Start a timeout to stop the stream after the specified duration

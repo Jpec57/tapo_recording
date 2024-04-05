@@ -19,7 +19,10 @@ docker run -p 3057:3057 tapo-image
 ```
 
 ```
-docker run -d -v /home/jpec/recordings:/usr/src/app --restart=on-failure -p 3057:3057 tapo-image
+# In Terminal
+docker run -v /home/jpec/recordings:/usr/src/app/recordings --restart=on-failure -p 3057:3057 tapo-image
+# Detached 
+docker run -d -v /home/jpec/recordings:/usr/src/app/recordings --restart=on-failure -p 3057:3057 tapo-image
 ```
 
 - no: This is the default value. It means that Docker will not automatically restart the container. You need to manually restart it if it exits.
