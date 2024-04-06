@@ -2,11 +2,11 @@ import { spawn } from 'child_process';
 import { Response } from 'express';
 import getTimeFilename from '../getTimeFilename';
 import fs from 'fs';
-import stopStream from './stopStream';
+import stopRecordingStream from './stopRecordingStream';
 import getPidFilePath from './getPidFilePath';
 import getRtspUrl from './getRtspUrl';
 
-const startStream = (duration: number, res: Response): void => {
+const recordStream = (duration: number, res: Response): void => {
   const outputFileName: string = getTimeFilename('.mp4');
   const logFileName: string = getTimeFilename('.log');
   const pidFilePath = getPidFilePath();
@@ -62,8 +62,8 @@ const startStream = (duration: number, res: Response): void => {
 
   // Start a timeout to stop the stream after the specified duration
   setTimeout(() => {
-    stopStream(logFileName);
+    stopRecordingStream(logFileName);
   }, duration * 1000);
 };
 
-export default startStream;
+export default recordStream;

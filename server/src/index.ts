@@ -1,9 +1,9 @@
 import express, { Request, Response } from 'express';
 import { spawn } from 'child_process';
 import { config } from 'dotenv';
-import startStream from './utils/stream/startStream';
-import stopStream from './utils/stream/stopStream';
-import getRtspUrl from './utils/stream/getRtspUrl';
+import recordStream from './utils/stream/recordStream';
+import stopRecordingStream from './utils/stream/stopRecordingStream';
+import getRtspUrl, { StreamQuality } from './utils/stream/getRtspUrl';
 import path from 'path';
 const Stream = require('node-rtsp-stream');
 import WebSocket from 'ws';
@@ -19,12 +19,18 @@ app.use(bodyParser.json());
 
 const DEFAULT_DURATION: number = 5 * 60; // 5 minutes
 
+app.get('/', (req: Request, res: Response): void => {
+  res.send('Hello');
+});
 let rtspStream: any = null;
 app.get('/stream', (req: Request, res: Response): void => {
+  const { quality } = req.query;
+
   if (!rtspStream) {
+    console.log({quality})
     const streamConfig = {
       name: 'JpecStream',
-      streamUrl: getRtspUrl(),
+      streamUrl: getRtspUrl(quality === 'high' ? StreamQuality.High : StreamQuality.Low),
       wsPort: 9999, // Port for WebSocket streaming
       ffmpegOptions: {
         '-stats': '', 
@@ -42,26 +48,23 @@ const killAll = (): void => {
   spawn('pkill', ['ffmpeg']);
 };
 
-app.get('/stopStream', (req: Request, res: Response): void => {
+app.get('/stream/stop', (req: Request, res: Response): void => {
   rtspStream?.stop();
   rtspStream = null;
   res.send('Stream stopped.');
 });
 
-app.get('/', (req: Request, res: Response): void => {
-  res.send('Hello');
-});
 
-app.get('/start', (req: Request, res: Response): void => {
+app.get('/record/start', (req: Request, res: Response): void => {
   const duration: number = req.query.duration
     ? parseInt(req.query.duration as string, 10)
     : DEFAULT_DURATION;
-  startStream(duration, res);
+  recordStream(duration, res);
 });
 
-app.get('/stop', (req: Request, res: Response): void => {
-  stopStream(null);
-  res.send('Stream stopped');
+app.get('/record/stop', (req: Request, res: Response): void => {
+  stopRecordingStream(null);
+  res.send('Stopped recording');
   res.end();
 });
 
@@ -70,14 +73,12 @@ app.get('/killall', (req: Request, res: Response): void => {
   res.send('All streams killed');
 });
 
-
+const clientHeartbeats = new Map();
 app.post('/heartbeat', (req, res) => {
   const { timestamp } = req.body;
   const clientId = req.ip; // Assuming IP address as the client identifier
-  
   // Update the timestamp for the client
   clientHeartbeats.set(clientId, timestamp);
-
   res.sendStatus(200);
 });
 
@@ -105,7 +106,6 @@ wss.on('close', () => {
   rtspStream = null;
 });
 
-const clientHeartbeats = new Map();
 
 const INTERVAL_SEC = 1
 const CLIENT_TIMEOUT_SEC = 2 * INTERVAL_SEC
@@ -123,8 +123,8 @@ setInterval(() => {
       clientHeartbeats.delete(clientId);
     }
   });
-  if (clientHeartbeats.size === 0) {
-    rtspStream?.stop();
-    rtspStream = null;
-  }
+  // if (clientHeartbeats.size === 0) {
+  //   rtspStream?.stop();
+  //   rtspStream = null;
+  // }
 }, INTERVAL_SEC * 60 * 1000);
