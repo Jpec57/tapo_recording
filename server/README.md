@@ -183,3 +183,8 @@ Verify changes
 ```
 sudo iptables -L
 ```
+
+
+```
+ffmpeg -i 'rtsp://Jpec57:LightweightBaby!@90.101.142.24:554/stream1' -f null -
+```

@@ -58,6 +58,7 @@ app.get('/stream', (req: Request, res: Response): void => {
       ffmpegOptions: {
         '-stats': '', 
         '-r': 30, 
+        '-rtsp_transport': 'tcp',
       },
     };
     rtspStream = new Stream(streamConfig);
