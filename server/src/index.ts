@@ -1,5 +1,5 @@
 import express, { Request, Response } from 'express';
-import { spawn } from 'child_process';
+import { spawn, exec } from 'child_process';
 import { config } from 'dotenv';
 import recordStream from './utils/stream/recordStream';
 import stopRecordingStream from './utils/stream/stopRecordingStream';
@@ -22,6 +22,29 @@ const DEFAULT_DURATION: number = 5 * 60; // 5 minutes
 app.get('/', (req: Request, res: Response): void => {
   res.send('Hello');
 });
+
+app.get('/ffmpeg', (req: Request, res: Response): void => {
+  const command = `ffprobe -show_error -i '${getRtspUrl()}' -loglevel debug`;
+
+  exec(command, (error, stdout, stderr) => {
+    if (error) {
+      console.error(`Error executing command: ${error.message}`);
+      res.send(error.message);
+      res.status(400);
+      return;
+    }
+    if (stderr) {
+      console.error(`ffprobe command returned an error: ${stderr}`);
+      res.send(stderr);
+      res.status(400);
+      return;
+    }
+
+    // Send the ffprobe output as the response
+    res.send(stdout);
+  });
+});
+
 let rtspStream: any = null;
 app.get('/stream', (req: Request, res: Response): void => {
   const { quality } = req.query;
