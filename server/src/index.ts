@@ -54,6 +54,15 @@ app.get('/killall', (req: Request, res: Response): void => {
   res.send('All streams killed');
 });
 
+const clientHeartbeats = new Map();
+app.post('/heartbeat', (req, res) => {
+  const { timestamp } = req.body;
+  const clientId = req.ip; // Assuming IP address as the client identifier
+  // Update the timestamp for the client
+  clientHeartbeats.set(clientId, timestamp);
+  res.sendStatus(200);
+});
+
 
 // let rtspStream: any = null;
 // app.get('/stream', (req: Request, res: Response): void => {
@@ -80,15 +89,6 @@ app.get('/stream', (req: Request, res: Response): void => {
   res.sendFile(path.join(__dirname, '../public', 'custom_stream.html'));
 });
 
-
-const clientHeartbeats = new Map();
-app.post('/heartbeat', (req, res) => {
-  const { timestamp } = req.body;
-  const clientId = req.ip; // Assuming IP address as the client identifier
-  // Update the timestamp for the client
-  clientHeartbeats.set(clientId, timestamp);
-  res.sendStatus(200);
-});
 
 
 const server = app.listen(PORT, () => {
