@@ -6,11 +6,12 @@ import stopRecordingStream from './utils/stream/stopRecordingStream';
 import getRtspUrl, { StreamQuality } from './utils/stream/getRtspUrl';
 import path from 'path';
 const Stream = require('node-rtsp-stream');
-import WebSocket from 'ws';
+import WebSocket, { WebSocketServer } from 'ws';
+import streamRtsp from './utils/stream/streamRtsp';
 const bodyParser = require('body-parser');
 
 const app: express.Application = express();
-const PORT: number | string = process.env.PORT || 3000;
+const PORT: number | string = process.env.PORT || 3057;
 config({ path: '.env.local' });
 
 const publicDirectoryPath = path.join(__dirname, '../public');
@@ -22,51 +23,6 @@ const DEFAULT_DURATION: number = 5 * 60; // 5 minutes
 app.get('/', (req: Request, res: Response): void => {
   res.send('Hello');
 });
-
-app.get('/ffmpeg', (req: Request, res: Response): void => {
-  const command = `ffprobe -show_error -i '${getRtspUrl()}' -loglevel debug`;
-
-  exec(command, (error, stdout, stderr) => {
-    if (error) {
-      console.error(`Error executing command: ${error.message}`);
-      res.send(error.message);
-      res.status(400);
-      return;
-    }
-    if (stderr) {
-      console.error(`ffprobe command returned an error: ${stderr}`);
-      res.send(stderr);
-      res.status(400);
-      return;
-    }
-
-    // Send the ffprobe output as the response
-    res.send(stdout);
-  });
-});
-
-let rtspStream: any = null;
-app.get('/stream', (req: Request, res: Response): void => {
-  const { quality } = req.query;
-
-  if (!rtspStream) {
-    console.log({quality})
-    const streamConfig = {
-      name: 'JpecStream',
-      streamUrl: getRtspUrl(quality === 'high' ? StreamQuality.High : StreamQuality.Low),
-      wsPort: 9999, // Port for WebSocket streaming
-      ffmpegOptions: {
-        '-stats': '', 
-        '-r': 30, 
-        '-rtsp_transport': 'tcp',
-      },
-    };
-    rtspStream = new Stream(streamConfig);
-  }
-
-  res.sendFile(path.join(__dirname, '../public', 'stream.html'));
-});
-
 
 const killAll = (): void => {
   spawn('pkill', ['ffmpeg']);
@@ -97,6 +53,16 @@ app.get('/killall', (req: Request, res: Response): void => {
   res.send('All streams killed');
 });
 
+
+let rtspStream: any = null;
+app.get('/stream', (req: Request, res: Response): void => {
+  const { quality } = req.query;
+  console.log({quality})
+
+  res.sendFile(path.join(__dirname, '../public', 'stream.html'));
+});
+
+
 const clientHeartbeats = new Map();
 app.post('/heartbeat', (req, res) => {
   const { timestamp } = req.body;
@@ -111,44 +77,35 @@ const server = app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
 });
 
-const wss = new WebSocket.Server({ server });
 
+const wss = new WebSocketServer({ server });
+wss.on('connection', (ws) => {
+  console.log('WebSocket connection established');
 
-wss.on('connection', (ws: WebSocket) => {
-  rtspStream.pipeToWebSocketServer(wss); // Assuming you have a method to pipe the stream to WebSocket
+  // Spawn FFmpeg process to stream video
+  const ffmpegProcess = spawn('ffmpeg', [
+    '-rtsp_transport', 'tcp',
+    '-i', getRtspUrl(),
+    '-f', 'mpegts', 'pipe:1'
+  ]);
+
+  // Pipe FFmpeg output to WebSocket
+  ffmpegProcess.stdout.on('data', (data) => {
+    ws.send(data); // Send video data to WebSocket clients
+  });
+
+  ffmpegProcess.stderr.on('data', data => {
+    console.error(data.toString()); // Log ffmpeg errors to console
+  });
+
+  // Handle process exit
+  ffmpegProcess.on('exit', () => {
+    console.log('FFmpeg process exited');
+  });
+
+  // Handle WebSocket close
   ws.on('close', () => {
-    console.log('CLOSING WEBSOCKET AND STREAM !')
-    rtspStream?.stop();
-    rtspStream = null;
+    console.log('WebSocket connection closed');
+    ffmpegProcess.kill(); // Kill FFmpeg process when WebSocket connection is closed
   });
-  
 });
-
-wss.on('close', () => {
-  console.log('CLOSING WEBSOCKET AND STREAM')
-  rtspStream?.stop();
-  rtspStream = null;
-});
-
-
-const INTERVAL_SEC = 1
-const CLIENT_TIMEOUT_SEC = 2 * INTERVAL_SEC
-
-setInterval(() => {
-  const now = Date.now();
-  const timeout = CLIENT_TIMEOUT_SEC;
-  
-  // Iterate through client heartbeats
-  clientHeartbeats.forEach((timestamp, clientId) => {
-    // Check if the client's last heartbeat is older than the timeout
-    if (now - timestamp > timeout) {
-      // Client is considered disconnected
-      console.log(`=> Client ${clientId} disconnected`);
-      clientHeartbeats.delete(clientId);
-    }
-  });
-  // if (clientHeartbeats.size === 0) {
-  //   rtspStream?.stop();
-  //   rtspStream = null;
-  // }
-}, INTERVAL_SEC * 60 * 1000);

@@ -1,3 +1,4 @@
+<!DOCTYPE html>
 <html>
   <body>
     <canvas id="canvas"></canvas>
@@ -5,48 +6,23 @@
 
   <script type="text/javascript" src="js/jsmpeg.min.js"></script>
   <script type="text/javascript">
-    player = new JSMpeg.Player('ws://localhost:9999', {
-      canvas: document.getElementById('canvas'), // Canvas should be a canvas DOM element
-    })
-  </script>
-  <script>
-    // Define a function to stop the stream
-    function stopStream() {
-      // Send a request to stop the stream when leaving the page
-      fetch('/stopStream')
-        .then((response) => {
-          if (response.ok) {
-            console.log('Stream stopped successfully')
-          } else {
-            console.error('Failed to stop the stream')
-          }
-        })
-        .catch((error) => {
-          console.error('Error stopping the stream:', error)
-        })
+    // Create a new WebSocket connection
+    var socket = new WebSocket('ws://localhost:3057')
+
+    // When the WebSocket connection is open
+    socket.onopen = function (event) {
+      console.log('WebSocket connection opened')
     }
 
-    // Attach the function to both onbeforeunload and unload events
-    window.onbeforeunload = stopStream
-    window.addEventListener('unload', stopStream)
-  </script>
-  <script>
-    setInterval(function () {
-      fetch('/heartbeat', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ timestamp: Date.now() }),
-      })
-        .then((response) => {
-          if (!response.ok) {
-            console.error('Failed to send heartbeat signal')
-          }
-        })
-        .catch((error) => {
-          console.error('Error sending heartbeat signal:', error)
-        })
-    }, 10 * 1000) // Send heartbeat signal every 30 seconds
+    // Create a new JSMpeg.Player instance
+    var player = new JSMpeg.Player(socket, {
+      canvas: document.getElementById('canvas'), // Canvas should be a canvas DOM element
+    })
+
+    // When the WebSocket connection receives a message
+    socket.onmessage = function (event) {
+      // Feed the received video data to the player
+      player.write(new Uint8Array(event.data))
+    }
   </script>
 </html>

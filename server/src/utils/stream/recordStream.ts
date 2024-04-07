@@ -14,16 +14,11 @@ const recordStream = (duration: number, res: Response): void => {
 
   console.log({ outputFileName });
 
-  //-analyzeduration 2147483647 -probesize 2147483647
   const params = [
     '-rtsp_transport',
     'tcp',
     '-i',
     rtspUrl,
-    // '-analyzeduration',
-    // '2147483647',
-    // '-probesize',
-    // '2147483647',
     '-c:v',
     'copy',
     '-an',
