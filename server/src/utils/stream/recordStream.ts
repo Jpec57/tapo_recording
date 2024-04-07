@@ -14,15 +14,24 @@ const recordStream = (duration: number, res: Response): void => {
 
   console.log({ outputFileName });
 
+  const params = [
+    '-i',
+    rtspUrl,
+    '-c:v',
+    'copy',
+    '-an',
+    '-f',
+    'mp4',
+    outputFileName
+  ];
+
   //ChildProcessWithoutNullStreams
-  const ffmpegProcess = spawn(
-    'ffmpeg',
-    ['-i', rtspUrl, '-c:v', 'copy', '-an', '-f', 'mp4', outputFileName],
-    {
-      detached: true
-      // stdio: ['ignore', 'pipe', 'pipe'] // Redirect stdio to ignore input, pipe stdout and stderr
-    }
-  );
+  const ffmpegProcess = spawn('ffmpeg', params, {
+    detached: true
+    // stdio: ['ignore', 'pipe', 'pipe'] // Redirect stdio to ignore input, pipe stdout and stderr
+  });
+
+  console.log('=> Running ffmpeg ' + params.join(' '));
 
   const pid = ffmpegProcess.pid;
   if (pid === undefined) {
