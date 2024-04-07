@@ -7,22 +7,22 @@
   <script type="text/javascript" src="js/jsmpeg.min.js"></script>
   <script type="text/javascript">
     // Create a new WebSocket connection
-    var socket = new WebSocket('ws://localhost:3057')
+    var socket = new WebSocket('ws://localhost:9999'); // Connect to port 9999
 
     // When the WebSocket connection is open
     socket.onopen = function (event) {
-      console.log('WebSocket connection opened')
+      console.log('WebSocket connection opened');
     }
 
     // Create a new JSMpeg.Player instance
     var player = new JSMpeg.Player(socket, {
       canvas: document.getElementById('canvas'), // Canvas should be a canvas DOM element
-    })
+    });
 
     // When the WebSocket connection receives a message
     socket.onmessage = function (event) {
       // Feed the received video data to the player
-      player.write(new Uint8Array(event.data))
-    }
+      player.write(new Uint8Array(event.data));
+    };
   </script>
 </html>

@@ -64,71 +64,106 @@ app.post('/heartbeat', (req, res) => {
 });
 
 
-// let rtspStream: any = null;
-// app.get('/stream', (req: Request, res: Response): void => {
-//   const { quality } = req.query;
-//   console.log({quality})
-//   // rtspStream = new Stream({
-//   //   name: 'JpecStream',
-//   //   streamUrl: getRtspUrl(),
-//   //   wsPort: 9999,
-//   //   ffmpegOptions: { // options ffmpeg flags
-//   //     '-stats': '', // an option with no neccessary value uses a blank string
-//   //     // '-r': 30, // options with required values specify the value after the key
-//   //     '-rtsp_transport': 'tcp'
-
-//   //   }
-//   // })
-//   // res.sendFile(path.join(__dirname, '../public', 'stream.html'));
-//   res.sendFile(path.join(__dirname, '../public', 'custom_stream.html'));
-// });
 let rtspStream: any = null;
 app.get('/stream', (req: Request, res: Response): void => {
   const { quality } = req.query;
   console.log({quality})
-  res.sendFile(path.join(__dirname, '../public', 'custom_stream.html'));
+  rtspStream = new Stream({
+    name: 'JpecStream',
+    streamUrl: getRtspUrl(),
+    wsPort: 9999,
+    ffmpegOptions: { // options ffmpeg flags
+      '-stats': '', // an option with no neccessary value uses a blank string
+      '-r': 30, // options with required values specify the value after the key
+      '-rtsp_transport': 'tcp',
+      '-probesize': '10M',
+    }
+  })
+  res.sendFile(path.join(__dirname, '../public', 'stream.html'));
 });
 
 
+// let rtspStream: any = null;
+// app.get('/stream', (req: Request, res: Response): void => {
+//   const { quality } = req.query;
+//   console.log({quality})
+//   res.sendFile(path.join(__dirname, '../public', 'custom_stream.html'));
+// });
 
-const server = app.listen(PORT, () => {
+
+
+app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
 });
 
 
-const wss = new WebSocketServer({ server });
-wss.on('connection', (ws) => {
-  console.log('WebSocket connection established');
+// const wss = new WebSocketServer({ port: 9999 });
+// wss.on('connection', (ws) => {
+//   console.log('WebSocket connection established');
 
-  const ffmpegParams = [
-    '-rtsp_transport', 'tcp',
-    '-probesize', '10M',
-    '-i', getRtspUrl(),
-    '-f',
-    'mpegts', 'pipe:1'
-  ];
-  // Spawn FFmpeg process to stream video
-  const ffmpegProcess = spawn('ffmpeg', ffmpegParams);
+//   // //
+//   // const streamHeader = Buffer.alloc(8); // Allocate buffer for the stream header
+//   // const magicBytes = Buffer.from('jsmp'); // Magic bytes (can be any 4 characters)
+//   // const width = 640; // Example width (replace with actual width)
+//   // const height = 480; // Example height (replace with actual height)
 
-  console.log('=> Running ffmpeg ' + ffmpegParams.join(' '));
+//   // // Write magic bytes and video size to the stream header
+//   // magicBytes.copy(streamHeader, 0);
+//   // streamHeader.writeUInt16BE(width, 4);
+//   // streamHeader.writeUInt16BE(height, 6);
 
-  // Pipe FFmpeg output to WebSocket
-  ffmpegProcess.stdout.on('data', (data) => {
-    ws.send(data); // Send video data to WebSocket clients
-  });
+//   // // Send the stream header to the WebSocket client
+//   // ws.send(streamHeader, { binary: true });
+//   // //
 
-  ffmpegProcess.stderr.on('data', data => {
-    console.error(data.toString()); // Log ffmpeg errors to console
-  });
 
-  // Handle process exit
-  ffmpegProcess.on('exit', () => {
-    console.log('FFmpeg process exited');
-  });
+//   const ffmpegParams = [
+//     '-rtsp_transport', 'tcp',
+//     '-probesize', '10M',
+//     '-i', getRtspUrl(),
+//     '-f',
+//     'mpegts',
+//     '-codec:v',
+//     'mpeg1video',
+//     //
+//     '-s',
+//     '960x540',
+//     //
+//     '-r', 
+//     '30',
+//     //
+//     '-codec:a',
+//     'mp2',
+//     //
+//     // '-b:a',
+//     // '128k',
+//     //
+//     'pipe:1'
+//   ];
+//   // Spawn FFmpeg process to stream video
+//   const ffmpegProcess = spawn('ffmpeg', ffmpegParams, {
+//     // detached: true
+//   });
 
-  // Handle WebSocket close
-  ws.on('close', () => {
-    console.log('WebSocket connection closed');
-    ffmpegProcess.kill(); // Kill FFmpeg process when WebSocket connection is closed
-  });
-});
+//   console.log('=> Running ffmpeg ' + ffmpegParams.join(' '));
+
+//   // Pipe FFmpeg output to WebSocket
+//   ffmpegProcess.stdout.on('data', (data) => {
+//     ws.send(data); // Send video data to WebSocket clients
+//   });
+
+//   ffmpegProcess.stderr.on('data', data => {
+//     console.error(data.toString()); // Log ffmpeg errors to console
+//   });
+
+//   // Handle process exit
+//   ffmpegProcess.on('exit', () => {
+//     console.log('FFmpeg process exited');
+//   });
+
+//   // Handle WebSocket close
+//   ws.on('close', () => {
+//     console.log('WebSocket connection closed');
+//     ffmpegProcess.kill(); // Kill FFmpeg process when WebSocket connection is closed
+//   });
+// });
