@@ -188,3 +188,78 @@ sudo iptables -L
 ```
 ffmpeg -i 'rtsp://Jpec57:LightweightBaby!@90.101.142.24:554/stream1' -f null -
 ```
+
+
+
+# Wss 
+
+To use wss instead of ws on tls connection (https), we have to add the two "/websocket" blocks in nginx
+
+```
+server {
+    listen 80;
+    server_name tapo.jpec57.fr;
+
+    location / {
+        proxy_pass http://51.15.182.205:3057;
+        proxy_set_header Host $host;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    location /websocket {
+        proxy_pass http://51.15.182.205:9999;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}
+
+server {
+    listen 443 ssl;
+    server_name tapo.jpec57.fr;
+
+    ssl_certificate /home/jpec/Cloudflare/jpec.fr.pem;
+    ssl_certificate_key /home/jpec/Cloudflare/jpec.fr.key;
+
+    location / {
+        proxy_pass http://51.15.182.205:3057;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    location /websocket {
+        proxy_pass http://51.15.182.205:9999;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+}
+```
+
+We can now access it via 
+
+```
+    player = new JSMpeg.Player('wss://tapo.jpec57.fr/websocket', {
+      canvas: document.getElementById('canvas'), // Canvas should be a canvas DOM element
+    })
+```
