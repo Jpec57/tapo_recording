@@ -65,7 +65,7 @@ app.post('/heartbeat', (req, res) => {
 
 
 let rtspStream: any = null;
-app.get('/stream', (req: Request, res: Response): void => {
+app.get('/stream2', (req: Request, res: Response): void => {
   const { quality } = req.query;
   console.log({quality})
   rtspStream = new Stream({
@@ -83,12 +83,11 @@ app.get('/stream', (req: Request, res: Response): void => {
 });
 
 
-// let rtspStream: any = null;
-// app.get('/stream', (req: Request, res: Response): void => {
-//   const { quality } = req.query;
-//   console.log({quality})
-//   res.sendFile(path.join(__dirname, '../public', 'custom_stream.html'));
-// });
+app.get('/stream', (req: Request, res: Response): void => {
+  const { quality } = req.query;
+  console.log({quality})
+  res.sendFile(path.join(__dirname, '../public', 'stream.html'));
+});
 
 
 
@@ -97,73 +96,73 @@ app.listen(PORT, () => {
 });
 
 
-// const wss = new WebSocketServer({ port: 9999 });
-// wss.on('connection', (ws) => {
-//   console.log('WebSocket connection established');
+const wss = new WebSocketServer({ port: 9999 });
+wss.on('connection', (ws) => {
+  console.log('WebSocket connection established');
 
-//   // //
-//   // const streamHeader = Buffer.alloc(8); // Allocate buffer for the stream header
-//   // const magicBytes = Buffer.from('jsmp'); // Magic bytes (can be any 4 characters)
-//   // const width = 640; // Example width (replace with actual width)
-//   // const height = 480; // Example height (replace with actual height)
+  // //
+  // const streamHeader = Buffer.alloc(8); // Allocate buffer for the stream header
+  // const magicBytes = Buffer.from('jsmp'); // Magic bytes (can be any 4 characters)
+  // const width = 640; // Example width (replace with actual width)
+  // const height = 480; // Example height (replace with actual height)
 
-//   // // Write magic bytes and video size to the stream header
-//   // magicBytes.copy(streamHeader, 0);
-//   // streamHeader.writeUInt16BE(width, 4);
-//   // streamHeader.writeUInt16BE(height, 6);
+  // // Write magic bytes and video size to the stream header
+  // magicBytes.copy(streamHeader, 0);
+  // streamHeader.writeUInt16BE(width, 4);
+  // streamHeader.writeUInt16BE(height, 6);
 
-//   // // Send the stream header to the WebSocket client
-//   // ws.send(streamHeader, { binary: true });
-//   // //
+  // // Send the stream header to the WebSocket client
+  // ws.send(streamHeader, { binary: true });
+  // //
 
 
-//   const ffmpegParams = [
-//     '-rtsp_transport', 'tcp',
-//     '-probesize', '10M',
-//     '-i', getRtspUrl(),
-//     '-f',
-//     'mpegts',
-//     '-codec:v',
-//     'mpeg1video',
-//     //
-//     '-s',
-//     '960x540',
-//     //
-//     '-r', 
-//     '30',
-//     //
-//     '-codec:a',
-//     'mp2',
-//     //
-//     // '-b:a',
-//     // '128k',
-//     //
-//     'pipe:1'
-//   ];
-//   // Spawn FFmpeg process to stream video
-//   const ffmpegProcess = spawn('ffmpeg', ffmpegParams, {
-//     // detached: true
-//   });
+  const ffmpegParams = [
+    '-rtsp_transport', 'tcp',
+    '-probesize', '10M',
+    '-i', getRtspUrl(),
+    '-f',
+    'mpegts',
+    '-codec:v',
+    'mpeg1video',
+    //
+    '-s',
+    '960x540',
+    //
+    '-r', 
+    '30',
+    //
+    '-codec:a',
+    'mp2',
+    //
+    // '-b:a',
+    // '128k',
+    //
+    'pipe:1'
+  ];
+  // Spawn FFmpeg process to stream video
+  const ffmpegProcess = spawn('ffmpeg', ffmpegParams, {
+    // detached: true
+  });
 
-//   console.log('=> Running ffmpeg ' + ffmpegParams.join(' '));
+  console.log('=> Running ffmpeg ' + ffmpegParams.join(' '));
 
-//   // Pipe FFmpeg output to WebSocket
-//   ffmpegProcess.stdout.on('data', (data) => {
-//     ws.send(data); // Send video data to WebSocket clients
-//   });
+  // Pipe FFmpeg output to WebSocket
+  ffmpegProcess.stdout.on('data', (data) => {
+    ws.send(data); // Send video data to WebSocket clients
+  });
 
-//   ffmpegProcess.stderr.on('data', data => {
-//     console.error(data.toString()); // Log ffmpeg errors to console
-//   });
+  ffmpegProcess.stderr.on('data', data => {
+    console.error(data.toString()); // Log ffmpeg errors to console
+  });
 
-//   // Handle process exit
-//   ffmpegProcess.on('exit', () => {
-//     console.log('FFmpeg process exited');
-//   });
+  // Handle process exit
+  ffmpegProcess.on('exit', () => {
+    console.log('FFmpeg process exited');
+  });
 
-//   // Handle WebSocket close
-//   ws.on('close', () => {
-//     console.log('WebSocket connection closed');
-//     ffmpegProcess.kill(); // Kill FFmpeg process when WebSocket connection is closed
-//   });
-// });
+  // Handle WebSocket close
+  ws.on('close', () => {
+    console.log('WebSocket connection closed');
+    ffmpegProcess.kill(); // Kill FFmpeg process when WebSocket connection is closed
+  });
+});
