@@ -1,16 +1,13 @@
 import express, { Request, Response } from 'express';
-import { spawn, exec } from 'child_process';
+import { spawn } from 'child_process';
 import { config } from 'dotenv';
 import recordStream from './utils/stream/recordStream';
 import stopRecordingStream from './utils/stream/stopRecordingStream';
 import getRtspUrl, { StreamQuality } from './utils/stream/getRtspUrl';
 import path from 'path';
-const Stream = require('node-rtsp-stream');
-import WebSocket, { WebSocketServer } from 'ws';
-import streamRtsp from './utils/stream/streamRtsp';
+import { WebSocketServer } from 'ws';
 const bodyParser = require('body-parser');
 
-    
 const app: express.Application = express();
 const PORT: number | string = process.env.PORT || 3057;
 config({ path: '.env.local' });
@@ -28,13 +25,6 @@ app.get('/', (req: Request, res: Response): void => {
 const killAll = (): void => {
   spawn('pkill', ['ffmpeg']);
 };
-
-app.get('/stream/stop', (req: Request, res: Response): void => {
-  rtspStream?.stop();
-  rtspStream = null;
-  res.send('Stream stopped.');
-});
-
 
 app.get('/record/start', (req: Request, res: Response): void => {
   const duration: number = req.query.duration
@@ -63,91 +53,57 @@ app.post('/heartbeat', (req, res) => {
   res.sendStatus(200);
 });
 
-
-let rtspStream: any = null;
-app.get('/stream2', (req: Request, res: Response): void => {
-  const { quality } = req.query;
-  console.log({quality})
-  rtspStream = new Stream({
-    name: 'JpecStream',
-    streamUrl: getRtspUrl(),
-    wsPort: 9999,
-    ffmpegOptions: { // options ffmpeg flags
-      '-stats': '', // an option with no neccessary value uses a blank string
-      '-r': 30, // options with required values specify the value after the key
-      '-rtsp_transport': 'tcp',
-      '-probesize': '10M',
-    }
-  })
-  res.sendFile(path.join(__dirname, '../public', 'stream.html'));
-});
-
-
 app.get('/stream', (req: Request, res: Response): void => {
   const { quality } = req.query;
-  console.log({quality})
+  console.log({ quality });
+  if (process.env.ENVIRONMENT === 'dev') {
+    res.sendFile(path.join(__dirname, '../public', 'dev_stream.html'));
+    return;
+  }
   res.sendFile(path.join(__dirname, '../public', 'stream.html'));
 });
-
-
 
 app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
 });
 
-
 const wss = new WebSocketServer({ port: 9999 });
-wss.on('connection', (ws) => {
+wss.on('connection', ws => {
   console.log('WebSocket connection established');
 
-  // //
-  // const streamHeader = Buffer.alloc(8); // Allocate buffer for the stream header
-  // const magicBytes = Buffer.from('jsmp'); // Magic bytes (can be any 4 characters)
-  // const width = 640; // Example width (replace with actual width)
-  // const height = 480; // Example height (replace with actual height)
-
-  // // Write magic bytes and video size to the stream header
-  // magicBytes.copy(streamHeader, 0);
-  // streamHeader.writeUInt16BE(width, 4);
-  // streamHeader.writeUInt16BE(height, 6);
-
-  // // Send the stream header to the WebSocket client
-  // ws.send(streamHeader, { binary: true });
-  // //
-
-
   const ffmpegParams = [
-    '-rtsp_transport', 'tcp',
-    '-probesize', '10M',
-    '-i', getRtspUrl(),
+    '-rtsp_transport',
+    'tcp',
+    '-probesize',
+    '10M',
+    '-i', // specifies the input source from the RTSP stream.
+    getRtspUrl(StreamQuality.Low),
     '-f',
     'mpegts',
+    // codec video
     '-codec:v',
     'mpeg1video',
     //
     '-s',
-    '960x540',
+    '1280x720',
     //
-    '-r', 
+    //
+    // '-c:v',
+    // 'copy', //tells FFmpeg to copy the video stream without re-encoding, preserving its original format and quality.
+    //
+    '-r', // Rate
     '30',
-    //
-    '-codec:a',
-    'mp2',
-    //
-    // '-b:a',
-    // '128k',
-    //
+    '-codec:a', //suitable audio codec
+    'pcm_alaw',
     'pipe:1'
   ];
   // Spawn FFmpeg process to stream video
-  const ffmpegProcess = spawn('ffmpeg', ffmpegParams, {
-    // detached: true
-  });
+  const ffmpegProcess = spawn('ffmpeg', ffmpegParams);
 
   console.log('=> Running ffmpeg ' + ffmpegParams.join(' '));
 
   // Pipe FFmpeg output to WebSocket
-  ffmpegProcess.stdout.on('data', (data) => {
+  ffmpegProcess.stdout.on('data', data => {
     ws.send(data); // Send video data to WebSocket clients
   });
 

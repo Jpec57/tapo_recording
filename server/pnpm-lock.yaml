@@ -23,9 +23,6 @@ dependencies:
   fluent-ffmpeg:
     specifier: ^2.1.2
     version: 2.1.2
-  node-rtsp-stream:
-    specifier: ^0.0.9
-    version: 0.0.9
   stream-buffers:
     specifier: ^3.0.2
     version: 3.0.2
@@ -475,15 +472,6 @@ packages:
     engines: {node: '>= 0.6'}
     dev: false
 
-  /node-rtsp-stream@0.0.9:
-    resolution: {integrity: sha512-ynSkdHL4fuhctl1GeK890De7n8Dw+37D6IAZGrzsFSrd4TYho6neFQpMS1t0ZRDGsAegKh2p6kl1l9Vo3pJk8w==}
-    dependencies:
-      ws: 7.5.9
-    transitivePeerDependencies:
-      - bufferutil
-      - utf-8-validate
-    dev: false
-
   /object-inspect@1.13.1:
     resolution: {integrity: sha512-5qoj1RUiKOMsCCNLV1CBiPYE10sziTsnmNxkAI/rZhiD63CF7IqdFGC/XzjWjpSgLf0LxXX3bDFIh0E18f6UhQ==}
     dev: false
@@ -653,19 +641,6 @@ packages:
     hasBin: true
     dependencies:
       isexe: 2.0.0
-    dev: false
-
-  /ws@7.5.9:
-    resolution: {integrity: sha512-F+P9Jil7UiSKSkppIiD94dN07AwvFixvLIj1Og1Rl9GGMuNipJnV9JzjD6XuqmAeiswGvUmNLjr5cFuXwNS77Q==}
-    engines: {node: '>=8.3.0'}
-    peerDependencies:
-      bufferutil: ^4.0.1
-      utf-8-validate: ^5.0.2
-    peerDependenciesMeta:
-      bufferutil:
-        optional: true
-      utf-8-validate:
-        optional: true
     dev: false
 
   /ws@8.16.0:

@@ -19,7 +19,6 @@
     "dotenv": "^16.4.5",
     "express": "^4.19.2",
     "fluent-ffmpeg": "^2.1.2",
-    "node-rtsp-stream": "^0.0.9",
     "stream-buffers": "^3.0.2",
     "ws": "^8.16.0"
   },
