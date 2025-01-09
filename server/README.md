@@ -1,27 +1,17 @@
 # Tapo
 
-```
-docker build -t tapo-base -f BaseDockerfile .
-docker build -t tapo-image . --no-cache
-```
-
-
-
 ## Docker
 
 ```
-docker build -t tapo-image . 
+docker build -t tapo-base -f BaseDockerfile .
 docker build -t tapo-image . --no-cache
-```
-
-```
 docker run -p 3057:3057 tapo-image
 ```
 
 ```
 # In Terminal
 docker run -v /home/jpec/recordings:/usr/src/app/recordings --restart=on-failure -p 3057:3057 -p 9999:9999 tapo-image
-# Detached 
+# Detached
 docker run -d -v /home/jpec/recordings:/usr/src/app/recordings --restart=on-failure -p 3057:3057 -p 9999:9999 tapo-image
 ```
 
@@ -30,14 +20,24 @@ docker run -d -v /home/jpec/recordings:/usr/src/app/recordings --restart=on-fail
 - on-failure: Docker will only restart the container if it exits with a non-zero exit status.
 - unless-stopped: Docker will always restart the container unless it is explicitly stopped by the user.
 
-
-
 ```
 docker ps # get container id
 docker stop <id>
 ```
 
+## Local test
 
+On the same WLAN
+
+```
+ffprobe -show_error -i 'rtsp://<TAPO_USERNAME>:<TAPO_PASSWORD>@<TAPO_LOCAL_IP>:554/stream1' -loglevel debug
+```
+
+Example:
+
+```
+ffprobe -show_error -i 'rtsp://Jpec57:LightweightBaby!@192.168.1.51:554/stream1' -loglevel debug
+```
 
 ## Url
 
@@ -62,6 +62,23 @@ RTSP_URL="rtsp://<username>:<password>@<ip_address>:554/stream1"
 
 NB: default port is 554 but could be configured during the port forwarding done on the app (for simplicity, I have use extern 554 -> 554 intern on Tapo)
 
+### Get the remote IP
+
+Go on the same wifi and go to `https://www.whatismyip.com/`
+
+### Port forwarding (orange)
+
+Go to http://192.168.1.1/
+Network > NAT/PAT 
+
+> Port address translation (PAT) is a type of network address translation (NAT) that maps a network's private internal IPv4 addresses to a single public IP address.
+
+FTP Server	554	554	TCP/UDP	Device-9	Toutes
+
+Where device-9 is the google wifi router in the dhcp section
+with its own ip address (Baux DHCP statiques)
+Device-9	192.168.1.51
+
 
 
 ## Kill all process (and be sure about it)
@@ -70,9 +87,7 @@ NB: default port is 554 but could be configured during the port forwarding done 
 pkill ffmpeg
 ```
 
-
 chmod +x stream_control.sh
-
 
 ## ffprob
 
@@ -171,8 +186,6 @@ Failed to parse interval end specification ''
 
 Allow RTSP Traffic:
 
-
-
 ```
 sudo iptables -A INPUT -p tcp --dport 554 -j ACCEPT
 sudo iptables-save
@@ -184,14 +197,11 @@ Verify changes
 sudo iptables -L
 ```
 
-
 ```
 ffmpeg -i 'rtsp://Jpec57:LightweightBaby!@90.101.142.24:554/stream1' -f null -
 ```
 
-
-
-# Wss 
+# Wss
 
 To use wss instead of ws on tls connection (https), we have to add the two "/websocket" blocks in nginx
 
@@ -256,7 +266,7 @@ server {
 }
 ```
 
-We can now access it via 
+We can now access it via
 
 ```
     player = new JSMpeg.Player('wss://tapo.jpec57.fr/websocket', {
