@@ -67,7 +67,8 @@ app.post('/heartbeat', (req, res) => {
 app.get('/stream', (req: Request, res: Response): void => {
   if (isDev()) {
     console.log('Development mode');
-    res.sendFile(path.join(__dirname, '../public', 'dev_stream.html'));
+    // res.sendFile(path.join(__dirname, '../public', 'dev_stream.html'));
+    res.sendFile(path.join(__dirname, '../public', 'dev_multi_stream.html'));
     return;
   }
   res.sendFile(path.join(__dirname, '../public', 'stream.html'));
