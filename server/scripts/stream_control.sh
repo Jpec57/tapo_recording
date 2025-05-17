@@ -43,7 +43,7 @@ stop_stream() {
         PID=$(cat /tmp/ffmpeg_pid)
         kill $PID
         rm /tmp/ffmpeg_pid  # Remove the temporary file
-        echo "Stream stopped (PID $PID)" >> "$LOG_FILE"
+        echo "Stream stopped (PID $PID)" >> "../$LOG_FILE"
     else
         echo "Stream is not running"
     fi

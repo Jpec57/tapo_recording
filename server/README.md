@@ -27,6 +27,10 @@ docker stop <id>
 
 ## Local test
 
+```
+brew install ffmpeg
+```
+
 On the same WLAN
 
 ```
@@ -208,10 +212,10 @@ To use wss instead of ws on tls connection (https), we have to add the two "/web
 ```
 server {
     listen 80;
-    server_name tapo.jpec57.fr;
+    server_name tapo.enter-train-me.fr;
 
     location / {
-        proxy_pass http://51.15.182.205:3057;
+        proxy_pass http://147.93.63.253:3057;
         proxy_set_header Host $host;
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;
@@ -223,7 +227,7 @@ server {
     }
 
     location /websocket {
-        proxy_pass http://51.15.182.205:9999;
+        proxy_pass http://147.93.63.253:9999;
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection "upgrade";
@@ -236,13 +240,13 @@ server {
 
 server {
     listen 443 ssl;
-    server_name tapo.jpec57.fr;
+    server_name tapo.enter-train-me.fr;
 
     ssl_certificate /home/jpec/Cloudflare/jpec.fr.pem;
     ssl_certificate_key /home/jpec/Cloudflare/jpec.fr.key;
 
     location / {
-        proxy_pass http://51.15.182.205:3057;
+        proxy_pass http://147.93.63.253:3057;
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection "upgrade";
@@ -253,7 +257,7 @@ server {
     }
 
     location /websocket {
-        proxy_pass http://51.15.182.205:9999;
+        proxy_pass http://147.93.63.253:9999;
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection "upgrade";
@@ -269,7 +273,7 @@ server {
 We can now access it via
 
 ```
-    player = new JSMpeg.Player('wss://tapo.jpec57.fr/websocket', {
+    player = new JSMpeg.Player('wss://tapo.enter-train-me.fr/websocket', {
       canvas: document.getElementById('canvas'), // Canvas should be a canvas DOM element
     })
 ```

@@ -1,7 +1,9 @@
 import getRtspUrl from './getRtspUrl';
 import { spawn } from 'child_process';
 import { Request, Response } from 'express';
-
+/**
+ * @deprecated Not used
+ */
 const streamRtsp = (req: Request, res: Response): void => {
   const rtspUrl = getRtspUrl();
 

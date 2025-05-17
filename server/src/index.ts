@@ -19,12 +19,8 @@ app.use(bodyParser.json());
 const DEFAULT_DURATION: number = 5 * 60; // 5 minutes
 
 app.get('/', (req: Request, res: Response): void => {
-  res.send('Hello');
+  res.send('<a href="/stream">Go to Stream</a>');
 });
-
-const killAll = (): void => {
-  spawn('pkill', ['ffmpeg']);
-};
 
 app.get('/record/start', (req: Request, res: Response): void => {
   const duration: number = req.query.duration
@@ -40,7 +36,7 @@ app.get('/record/stop', (req: Request, res: Response): void => {
 });
 
 app.get('/killall', (req: Request, res: Response): void => {
-  killAll();
+  spawn('pkill', ['ffmpeg']);
   res.send('All streams killed');
 });
 

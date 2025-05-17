@@ -1,13 +1,15 @@
 <!DOCTYPE html>
 <html>
-  <body>
-    <canvas id="canvas"></canvas>
-  </body>
 
-  <script type="text/javascript" src="js/jsmpeg.min.js"></script>
-  <script type="text/javascript">
-    player = new JSMpeg.Player('wss://tapo.jpec57.fr/websocket', {
-      canvas: document.getElementById('canvas'), // Canvas should be a canvas DOM element
-    })
-  </script>
+<body>
+  <canvas id="canvas"></canvas>
+</body>
+
+<script type="text/javascript" src="js/jsmpeg.min.js"></script>
+<script type="text/javascript">
+  player = new JSMpeg.Player('wss://tapo.enter-train-me.fr/websocket', {
+    canvas: document.getElementById('canvas'), // Canvas should be a canvas DOM element
+  })
+</script>
+
 </html>
