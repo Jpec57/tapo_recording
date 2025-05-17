@@ -40,7 +40,7 @@ ffprobe -show_error -i 'rtsp://<TAPO_USERNAME>:<TAPO_PASSWORD>@<TAPO_LOCAL_IP>:5
 Example:
 
 ```
-ffprobe -show_error -i 'rtsp://Jpec57:LightweightBaby!@192.168.1.51:554/stream1' -loglevel debug
+ffprobe -show_error -i 'rtsp://Jpec57:LightweightBaby!@192.168.86.36:554/stream1' -loglevel debug
 ```
 
 ## Url

@@ -6,12 +6,14 @@ import stopRecordingStream from './utils/stream/stopRecordingStream';
 import getRtspUrl, { StreamQuality } from './utils/stream/getRtspUrl';
 import path from 'path';
 import { WebSocketServer } from 'ws';
+import { isDev } from './utils/__isDev__';
 const bodyParser = require('body-parser');
 
 const app: express.Application = express();
 const PORT: number | string = process.env.PORT || 3057;
 config({ path: '.env.local' });
-
+const env = process.env.NODE_ENV;
+console.log('Environment:', env);
 const publicDirectoryPath = path.join(__dirname, '../public');
 app.use(express.static(publicDirectoryPath));
 app.use(bodyParser.json());
@@ -51,8 +53,10 @@ app.post('/heartbeat', (req, res) => {
 
 app.get('/stream', (req: Request, res: Response): void => {
   const { quality } = req.query;
+  console.log(getRtspUrl(quality as StreamQuality));
   console.log({ quality });
-  if (process.env.ENVIRONMENT === 'dev') {
+  if (isDev()) {
+    console.log('Development mode');
     res.sendFile(path.join(__dirname, '../public', 'dev_stream.html'));
     return;
   }

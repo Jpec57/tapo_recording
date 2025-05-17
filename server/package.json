@@ -7,7 +7,8 @@
     "test": "echo \"Error: no test specified\" && exit 1",
     "build": "tsc",
     "launch": "node dist/index.js",
-    "start": "pnpm build && pnpm launch"
+    "start": "pnpm build && pnpm launch",
+    "dev": "NODE_ENV=development nodemon"
   },
   "keywords": [],
   "author": "",
@@ -27,6 +28,9 @@
     "@types/fluent-ffmpeg": "^2.1.24",
     "@types/node": "^20.11.30",
     "@types/stream-buffers": "^3.0.7",
-    "typescript": "^5.4.3"
+    "typescript": "^5.4.3",
+    "nodemon": "^3.1.9",
+    "ts-node": "^10.9.2",
+    "tsconfig-paths": "^4.2.0"
   }
 }

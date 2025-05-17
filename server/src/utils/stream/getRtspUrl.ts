@@ -1,4 +1,5 @@
 import { config } from 'dotenv';
+import { isDev } from '../__isDev__';
 config({ path: '.env.local' });
 
 export enum StreamQuality {
@@ -8,8 +9,10 @@ export enum StreamQuality {
 
 const getRtspUrl = (quality: StreamQuality = StreamQuality.High) => {
   const streamQuality = quality === StreamQuality.High ? 'stream1' : 'stream2';
+  const ip = isDev() ? process.env.TAPO_LOCAL_IP : process.env.TAPO_REMOTE_IP;
+
+  console.log('IP:', ip);
   return `rtsp://${process.env.TAPO_USERNAME}:${process.env
-    .TAPO_PASSWORD}@${process.env.TAPO_REMOTE_IP}:${process.env
-    .TAPO_REMOTE_PORT}/${streamQuality}`;
+    .TAPO_PASSWORD}@${ip}:${process.env.TAPO_REMOTE_PORT}/${streamQuality}`;
 };
 export default getRtspUrl;
