@@ -4,116 +4,163 @@
 <head>
   <title>Dynamic Multi-Stream Viewer</title>
   <style>
+    html,
     body {
+      height: 100%;
+      margin: 0;
+      padding: 0;
       font-family: sans-serif;
-      margin: 10px;
       background-color: #f0f0f0;
+      display: flex;
+      flex-direction: column;
     }
 
-    h1 {
-      text-align: center;
+    .page-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 15px 20px;
+      background-color: #fff;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      flex-shrink: 0;
+      position: relative;
+      z-index: 10;
     }
 
-    .global-controls {
-      text-align: center;
-      margin-bottom: 20px;
+    .page-header h1 {
+      margin: 0;
+      font-size: 1.6em;
+      color: #333;
     }
 
     .global-controls button {
-      padding: 10px 15px;
-      font-size: 1em;
+      padding: 8px 15px;
+      font-size: 0.9em;
+      /* ... other button styles from previous answer ... */
       cursor: pointer;
+      border-radius: 4px;
+      border: 1px solid #ccc;
+      background-color: #f7f7f7;
+    }
+
+    .global-controls button:hover {
+      background-color: #e7e7e7;
+    }
+
+    .global-controls button:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
+    .stream-area-wrapper {
+      flex-grow: 1;
+      overflow: hidden;
+      /* Key for preventing this wrapper from scrolling */
+      padding-top: 10px;
+      box-sizing: border-box;
+      display: flex;
+      /* Allows child (.stream-layout) to take full height if needed */
     }
 
     .stream-layout {
       display: flex;
       flex-wrap: wrap;
       justify-content: flex-start;
-      /* Aligns items to the start */
       gap: 20px;
-      /* This is our main gap */
+      /* Gap between stream containers */
+      width: 100%;
+      height: 100%;
+      overflow-y: auto;
+      /* If content (rows of streams) overflows, this part scrolls */
+      align-content: flex-start;
+      /* Pack rows to the top */
     }
 
     .stream-container {
       position: relative;
-      /* --- For Max 2 Columns --- */
-      flex-grow: 0;
-      /* Don't grow beyond basis */
+      flex-grow: 1;
+      /* Allow growing to fill space, especially the last item in a row */
       flex-shrink: 1;
-      /* Allow shrinking if needed */
-      flex-basis: calc(50% - 10px);
-      /* 50% width minus half the gap (20px / 2) */
+      /* flex-basis will be set by parent class */
       box-sizing: border-box;
-      /* Include padding and border in the element's total width and height */
-      /* --- End Max 2 Columns --- */
       min-width: 280px;
-      /* Still allow shrinking and wrapping on very small screens */
+      /* Minimum sensible width */
       border: 1px solid #ccc;
-      padding: 15px;
-      padding-top: 40px;
-      /* More space for close button */
+      padding-top: 10px;
+      /* For close button */
       background-color: #fff;
       box-shadow: 2px 2px 5px rgba(0, 0, 0, 0.1);
       display: flex;
       flex-direction: column;
     }
 
-    /* Handle single item case to take more width if desired */
-    .stream-layout:has(:first-child:last-child) .stream-container {
-      flex-basis: calc(100% - 20px);
-      /* Full width if only one, accounting for potential gap */
-      max-width: 700px;
-      /* Optional: prevent it from being overly wide */
-      margin-left: auto;
-      /* Center it if it's narrower than layout */
-      margin-right: auto;
+    /* --- Dynamic Layout Styles --- */
+    .stream-layout.count-1 .stream-container {
+      flex-basis: 100%;
+      /* Full width */
+      height: 100%;
+      /* Full height of the scrollable area */
     }
+
+    .stream-layout.count-2 .stream-container {
+      flex-basis: calc(50% - 10px);
+      /* (gap is 20px, 20px/2 = 10px) */
+      height: 100%;
+      /* Full height, side-by-side */
+    }
+
+    /* For 3 or 4 streams, they will be in a max 2-column configuration */
+    /* Each item aims for 50% width and 50% height of the available space */
+    .stream-layout.count-3 .stream-container,
+    .stream-layout.count-4 .stream-container {
+      flex-basis: calc(50% - 10px);
+      height: calc(50% - 10px);
+      /* Half height, allowing for gap between rows */
+    }
+
+    /* Note: The 3rd stream in count-3 will naturally be on a new row.
+       With flex-grow: 1 on .stream-container, it will expand to fill the width of that row.
+       Its height will remain calc(50% - 10px). */
+
 
     .stream-container h2 {
       margin-top: 0;
-      font-size: 1.2em;
+      font-size: 1.1em;
       color: #333;
       text-align: center;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
 
     canvas {
       width: 100% !important;
-      height: auto !important;
       background-color: #000;
       display: block;
       flex-grow: 1;
       object-fit: contain;
+      min-height: 150px;
+      /* Ensure canvas doesn't collapse */
     }
 
     .controls {
-      margin-top: 10px;
+      /* This div will now be empty or removed */
+      margin-top: auto;
+      padding-top: 10px;
       text-align: center;
+      flex-shrink: 0;
+      height: 0;
+      /* Hide if empty */
+      overflow: hidden;
+      /* Hide if empty */
     }
 
-    .controls button {
-      margin: 0 5px;
-      padding: 8px 12px;
-      /* ... other button styles ... */
-      border: 1px solid #ddd;
-      background-color: #e7e7e7;
-      cursor: pointer;
-      border-radius: 4px;
-    }
-
-    .controls button:hover {
-      background-color: #d7d7d7;
-    }
-
-    .controls button:disabled {
-      opacity: 0.5;
-      cursor: not-allowed;
-    }
+    /* No Play/Stop button styles needed here anymore */
 
     .close-stream-btn {
       position: absolute;
       top: 8px;
       right: 8px;
-      /* ... other styles ... */
       background-color: rgba(40, 40, 40, 0.6);
       color: white;
       border: none;
@@ -132,30 +179,24 @@
       background-color: rgba(255, 0, 0, 0.8);
     }
 
-    /* --- Modal Styles --- */
+    /* --- Modal Styles (keep as is) --- */
     .modal {
       display: none;
-      /* Hidden by default */
-      position: fixed;
-      z-index: 100;
-      left: 0;
-      top: 0;
-      width: 100%;
-      height: 100%;
-      overflow: auto;
-      background-color: rgba(0, 0, 0, 0.6);
-      align-items: center;
-      /* Vertical centering */
-      justify-content: center;
-      /* Horizontal centering */
+      /* ... */
     }
 
+    .modal.active {
+      display: flex;
+      /* ... */
+    }
+
+    /* ... (rest of modal styles from previous answer) ... */
     .modal-content {
       background-color: #fefefe;
       margin: auto;
       padding: 20px;
       border: 1px solid #888;
-      width: 80%;
+      width: 90%;
       max-width: 400px;
       border-radius: 8px;
       box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
@@ -193,14 +234,18 @@
 </head>
 
 <body>
-  <h1>Multi-Stream Viewer</h1>
+  <header class="page-header">
+    <h1>Multi-Stream Viewer</h1>
+    <div class="global-controls">
+      <button id="addStreamBtn">Add Stream</button>
+    </div>
+  </header>
 
-  <div class="global-controls">
-    <button id="addStreamBtn">Add Stream</button>
-  </div>
 
-  <div class="stream-layout" id="streamLayout">
-  </div>
+  <main class="stream-area-wrapper">
+    <div class="stream-layout" id="streamLayout">
+    </div>
+  </main>
 
   <div id="addStreamModal" class="modal">
     <div class="modal-content">
@@ -213,6 +258,7 @@
 
   <script type="text/javascript" src="js/jsmpeg.min.js"></script>
   <script type="text/javascript">
+    // --- (ALL_AVAILABLE_STREAMS, INITIAL_STREAMS_TO_SHOW_KEYS, MAX_STREAMS, element refs - same as before) ---
     const ALL_AVAILABLE_STREAMS = {
       "home_gym": "Home Gym",
       "rabbit_live": "Rabbit Live",
@@ -226,32 +272,18 @@
 
     const streamLayoutContainer = document.getElementById('streamLayout');
     const addStreamButton = document.getElementById('addStreamBtn');
-    const activeStreamPlayers = [];
+    const activeStreamPlayers = []; // Holds streamDef objects
 
-    // Modal elements
     const addStreamModal = document.getElementById('addStreamModal');
     const modalCloseButton = document.getElementById('modalCloseBtn');
     const modalStreamSelect = document.getElementById('modalStreamSelect');
     const modalConfirmAddButton = document.getElementById('modalConfirmAddBtn');
 
-    function updateButtonStates(streamDef) {
-      // ... (This function remains the same as your previous version, no mute)
-      const player = streamDef.playerInstance;
-      const playButton = document.getElementById(streamDef.playButtonId);
-      const stopButton = document.getElementById(streamDef.stopButtonId);
+    function noop() { } // For JSMpeg ping if needed by some internal logic, though not directly used by us now
 
-      if (!player || !playButton || !stopButton) {
-        if (playButton) playButton.disabled = true;
-        if (stopButton) stopButton.disabled = true;
-        return;
-      }
-      const isPlaying = player.isPlaying;
-      playButton.disabled = isPlaying;
-      stopButton.disabled = !isPlaying;
-    }
+    // REMOVED: updateButtonStates function is no longer needed.
 
     function initializePlayer(streamDef) {
-      // ... (This function remains the same as your previous version)
       if (streamDef.playerInstance) {
         try { streamDef.playerInstance.destroy(); }
         catch (e) { console.warn(`Error destroying previous player for ${streamDef.key}:`, e); }
@@ -268,16 +300,19 @@
 
       try {
         streamDef.playerInstance = new JSMpeg.Player(wsUrl, {
-          canvas: canvas, autoplay: true,
+          canvas: canvas,
+          autoplay: true, // Autoplay is key
+          // No Play/Stop buttons, so onPlay/onPause don't need to update them.
+          // They are still useful for logging or changing the title.
           onPlay: () => {
             console.log(`Playing: ${streamDef.friendlyName}`);
             titleElement.textContent = `${streamDef.friendlyName}`;
-            updateButtonStates(streamDef);
+            // NO call to updateButtonStates
           },
-          onPause: (player) => {
+          onPause: (player) => { // Player might pause due to error or if stop() was called (not possible now)
             console.log(`Paused/Ended: ${streamDef.friendlyName}`);
-            if (player && !player.didError) titleElement.textContent = `${streamDef.friendlyName} (Paused/Ended)`;
-            updateButtonStates(streamDef);
+            if (player && !player.didError) titleElement.textContent = `${streamDef.friendlyName} (Stream Ended/Paused)`;
+            // NO call to updateButtonStates
           },
           onStall: () => {
             console.warn(`Stalled: ${streamDef.friendlyName}`);
@@ -287,18 +322,31 @@
             console.error(`Error ${streamDef.friendlyName}:`, error);
             titleElement.textContent = `${streamDef.friendlyName} (Error)`;
             if (player) player.didError = true;
-            updateButtonStates(streamDef);
+            // NO call to updateButtonStates
           }
         });
-        updateButtonStates(streamDef);
+        // NO call to updateButtonStates after initialization
       } catch (e) {
         console.error(`Failed to init JSMpeg for ${streamDef.friendlyName}:`, e);
         titleElement.textContent = `Error loading: ${streamDef.friendlyName}`;
-        updateButtonStates(streamDef);
+        // NO call to updateButtonStates
       }
     }
 
+    function updateStreamLayoutStyling() {
+      const count = activeStreamPlayers.length;
+      streamLayoutContainer.className = 'stream-layout'; // Reset to base class
+      if (count > 0 && count <= MAX_STREAMS) {
+        streamLayoutContainer.classList.add(`count-${count}`);
+      }
+      // Individual styling for the odd one out in a 3-stream layout might be complex
+      // The flex-grow:1 on .stream-container should make the 3rd item in a 2-column setup expand.
+      // The CSS classes .count-1, .count-2, .count-3, .count-4 handle the main sizing.
+    }
+
+
     function getAvailableStreamsForAdding() {
+      // ... (same as previous version) ...
       const displayedKeys = activeStreamPlayers.map(def => def.key);
       return Object.keys(ALL_AVAILABLE_STREAMS)
         .filter(key => !displayedKeys.includes(key))
@@ -306,6 +354,7 @@
     }
 
     function updateAddStreamButtonStatus() {
+      // ... (same as previous version) ...
       let canAddMore = activeStreamPlayers.length < MAX_STREAMS;
       if (canAddMore) {
         const availableKeysForAdding = getAvailableStreamsForAdding();
@@ -331,20 +380,20 @@
         activeStreamPlayers.splice(indexToRemove, 1);
       }
       updateAddStreamButtonStatus();
+      updateStreamLayoutStyling(); // Update layout after removing a stream
     }
 
     function addStreamToLayout(streamKey) {
-      if (activeStreamPlayers.length >= MAX_STREAMS) {
-        console.log("Cannot add stream: limit reached.");
+      if (activeStreamPlayers.length >= MAX_STREAMS ||
+        !ALL_AVAILABLE_STREAMS[streamKey] ||
+        activeStreamPlayers.some(def => def.key === streamKey)) {
+        // Logging for these conditions handled in calling function or here
+        console.warn(`Cannot add stream: ${streamKey}. Limit reached, invalid, or already displayed.`);
         updateAddStreamButtonStatus();
-        return false; // Indicate failure
-      }
-      if (!ALL_AVAILABLE_STREAMS[streamKey] || activeStreamPlayers.some(def => def.key === streamKey)) {
-        console.warn(`Stream key "${streamKey}" invalid, not defined, or already displayed.`);
-        return false; // Indicate failure
+        return false;
       }
 
-      const idSuffix = streamKey + '_' + Date.now(); // Make ID more unique and related to key
+      const idSuffix = streamKey.replace(/[^a-zA-Z0-9]/g, '') + '_' + Date.now(); // Sanitize key for ID
 
       const streamDef = {
         key: streamKey,
@@ -352,8 +401,7 @@
         idSuffix: idSuffix,
         canvasId: `canvas-stream-${idSuffix}`,
         titleId: `title-stream-${idSuffix}`,
-        playButtonId: `play-stream-${idSuffix}`,
-        stopButtonId: `stop-stream-${idSuffix}`,
+        // NO playButtonId, stopButtonId
         playerInstance: null,
         containerElement: null
       };
@@ -369,18 +417,10 @@
       const canvas = document.createElement('canvas');
       canvas.id = streamDef.canvasId;
 
-      const controlsDiv = document.createElement('div');
-      controlsDiv.className = 'controls';
-
-      const playButton = document.createElement('button');
-      playButton.id = streamDef.playButtonId;
-      playButton.textContent = 'Play';
-      playButton.disabled = true;
-
-      const stopButton = document.createElement('button');
-      stopButton.id = streamDef.stopButtonId;
-      stopButton.textContent = 'Stop';
-      stopButton.disabled = true;
+      // REMOVED: controlsDiv and Play/Stop buttons
+      // const controlsDiv = document.createElement('div');
+      // controlsDiv.className = 'controls'; 
+      // (If you want to keep the div for future use or spacing, you can, but it will be empty)
 
       const closeButton = document.createElement('button');
       closeButton.className = 'close-stream-btn';
@@ -388,39 +428,28 @@
       closeButton.title = `Close ${streamDef.friendlyName}`;
       closeButton.addEventListener('click', () => removeStream(streamDef));
 
-      controlsDiv.appendChild(playButton);
-      controlsDiv.appendChild(stopButton);
-
       container.appendChild(closeButton);
       container.appendChild(title);
       container.appendChild(canvas);
-      container.appendChild(controlsDiv);
+      // container.appendChild(controlsDiv); // No controls to append
 
       streamLayoutContainer.appendChild(container);
       activeStreamPlayers.push(streamDef);
 
       initializePlayer(streamDef);
-
-      playButton.addEventListener('click', () => {
-        if (streamDef.playerInstance) streamDef.playerInstance.play();
-        else initializePlayer(streamDef);
-      });
-      stopButton.addEventListener('click', () => {
-        if (streamDef.playerInstance) streamDef.playerInstance.stop();
-      });
       updateAddStreamButtonStatus();
-      return true; // Indicate success
+      updateStreamLayoutStyling(); // Update layout after adding a stream
+      return true;
     }
 
-    // --- Modal Logic ---
+    // --- Modal Logic (remains the same as previous version) ---
     function openAddStreamModal() {
       const availableStreams = getAvailableStreamsForAdding();
-      modalStreamSelect.innerHTML = ''; // Clear previous options
+      modalStreamSelect.innerHTML = '';
 
       if (availableStreams.length === 0) {
-        // Should not happen if addStreamButton was enabled, but as a safeguard:
         alert("No more unique streams available to add or maximum reached.");
-        updateAddStreamButtonStatus(); // Ensure button is correctly disabled
+        updateAddStreamButtonStatus();
         return;
       }
 
@@ -430,18 +459,18 @@
         option.textContent = stream.friendlyName;
         modalStreamSelect.appendChild(option);
       });
-      addStreamModal.style.display = 'flex';
+      addStreamModal.classList.add('active');
     }
 
     function closeAddStreamModal() {
-      addStreamModal.style.display = 'none';
+      addStreamModal.classList.remove('active');
     }
 
     addStreamButton.addEventListener('click', () => {
-      if (activeStreamPlayers.length < MAX_STREAMS) {
+      if (activeStreamPlayers.length < MAX_STREAMS && getAvailableStreamsForAdding().length > 0) {
         openAddStreamModal();
       } else {
-        updateAddStreamButtonStatus(); // Just to be sure it's disabled
+        updateAddStreamButtonStatus();
       }
     });
 
@@ -453,25 +482,23 @@
         if (success) {
           closeAddStreamModal();
         } else {
-          // Optionally provide feedback if adding failed (e.g. already exists - though modal should prevent this)
-          alert(`Could not add stream: ${selectedStreamKey}. It might already be displayed or an error occurred.`);
+          // alert might be annoying if addStreamToLayout already logs
         }
       }
     });
 
-    // Close modal if clicked outside of modal-content
     window.addEventListener('click', (event) => {
       if (event.target === addStreamModal) {
         closeAddStreamModal();
       }
     });
 
-    // Initialize with predefined streams
+    // --- Initialize ---
     INITIAL_STREAMS_TO_SHOW_KEYS.slice(0, MAX_STREAMS).forEach(key => {
-      addStreamToLayout(key);
+      addStreamToLayout(key); // This already calls updateStreamLayoutStyling
     });
-    updateAddStreamButtonStatus();
-
+    // updateStreamLayoutStyling(); // Call once after all initial streams are added
+    // updateAddStreamButtonStatus(); // Already called by last addStreamToLayout
 
     window.addEventListener('beforeunload', () => {
       activeStreamPlayers.forEach(streamDef => {
