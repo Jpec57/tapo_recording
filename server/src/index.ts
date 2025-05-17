@@ -52,9 +52,6 @@ app.post('/heartbeat', (req, res) => {
 });
 
 app.get('/stream', (req: Request, res: Response): void => {
-  const { quality } = req.query;
-  console.log(getRtspUrl(quality as StreamQuality));
-  console.log({ quality });
   if (isDev()) {
     console.log('Development mode');
     res.sendFile(path.join(__dirname, '../public', 'dev_stream.html'));
