@@ -65,57 +65,137 @@ app.listen(PORT, () => {
 });
 
 const wss = new WebSocketServer({ port: 9999 });
+// wss.on('connection', ws => {
+//   console.log('WebSocket connection established');
+
+//   const ffmpegParams = [
+//     '-rtsp_transport',
+//     'tcp',
+//     '-probesize',
+//     '10M',
+//     '-i', // specifies the input source from the RTSP stream.
+//     getRtspUrl(StreamQuality.Low),
+//     '-f',
+//     'mpegts',
+//     // codec video
+//     '-codec:v',
+//     'mpeg1video',
+//     //
+//     '-s',
+//     '1280x720',
+//     //
+//     //
+//     // '-c:v',
+//     // 'copy', //tells FFmpeg to copy the video stream without re-encoding, preserving its original format and quality.
+//     //
+//     '-r', // Rate
+//     '30',
+//     '-codec:a', //suitable audio codec
+//     'pcm_alaw',
+//     'pipe:1'
+//   ];
+//   // Spawn FFmpeg process to stream video
+//   const ffmpegProcess = spawn('ffmpeg', ffmpegParams);
+
+//   console.log('=> Running ffmpeg ' + ffmpegParams.join(' '));
+
+//   // Pipe FFmpeg output to WebSocket
+//   ffmpegProcess.stdout.on('data', data => {
+//     ws.send(data); // Send video data to WebSocket clients
+//   });
+
+//   ffmpegProcess.stderr.on('data', data => {
+//     console.error(data.toString()); // Log ffmpeg errors to console
+//   });
+
+//   // Handle process exit
+//   ffmpegProcess.on('exit', () => {
+//     console.log('FFmpeg process exited');
+//   });
+
+//   // Handle WebSocket close
+//   ws.on('close', () => {
+//     console.log('WebSocket connection closed');
+//     ffmpegProcess.kill(); // Kill FFmpeg process when WebSocket connection is closed
+//   });
+// });
+
+const activeStreams: Map<
+  string,
+  { process: any; clients: Set<any> }
+> = new Map();
+
 wss.on('connection', ws => {
-  console.log('WebSocket connection established');
+  const streamUrl = getRtspUrl(StreamQuality.Low);
+  console.log(`WebSocket connection established for stream: ${streamUrl}`);
 
-  const ffmpegParams = [
-    '-rtsp_transport',
-    'tcp',
-    '-probesize',
-    '10M',
-    '-i', // specifies the input source from the RTSP stream.
-    getRtspUrl(StreamQuality.Low),
-    '-f',
-    'mpegts',
-    // codec video
-    '-codec:v',
-    'mpeg1video',
-    //
-    '-s',
-    '1280x720',
-    //
-    //
-    // '-c:v',
-    // 'copy', //tells FFmpeg to copy the video stream without re-encoding, preserving its original format and quality.
-    //
-    '-r', // Rate
-    '30',
-    '-codec:a', //suitable audio codec
-    'pcm_alaw',
-    'pipe:1'
-  ];
-  // Spawn FFmpeg process to stream video
-  const ffmpegProcess = spawn('ffmpeg', ffmpegParams);
+  if (!activeStreams.has(streamUrl)) {
+    console.log(`No active FFmpeg for ${streamUrl}. Starting new process.`);
+    const ffmpegParams = [
+      '-rtsp_transport',
+      'tcp',
+      '-probesize',
+      '10M',
+      '-i',
+      streamUrl,
+      '-f',
+      'mpegts',
+      '-codec:v',
+      'mpeg1video',
+      '-s',
+      '1280x720',
+      '-r',
+      '30',
+      '-codec:a',
+      'pcm_alaw',
+      'pipe:1'
+    ];
+    const ffmpegProcess = spawn('ffmpeg', ffmpegParams);
+    console.log(
+      `=> Spawning FFmpeg for ${streamUrl}: ${ffmpegParams.join(' ')}`
+    );
 
-  console.log('=> Running ffmpeg ' + ffmpegParams.join(' '));
+    const newStreamData = { process: ffmpegProcess, clients: new Set<any>() };
+    activeStreams.set(streamUrl, newStreamData);
+    newStreamData.clients.add(ws); // Add the first client
 
-  // Pipe FFmpeg output to WebSocket
-  ffmpegProcess.stdout.on('data', data => {
-    ws.send(data); // Send video data to WebSocket clients
-  });
+    console.log(
+      `Client added to new stream ${streamUrl}. Total clients: ${newStreamData
+        .clients.size}`
+    );
 
-  ffmpegProcess.stderr.on('data', data => {
-    console.error(data.toString()); // Log ffmpeg errors to console
-  });
+    ffmpegProcess.stdout.on('data', data => {
+      newStreamData.clients.forEach(client => {
+        if (client.readyState === WebSocket.OPEN) {
+          // WebSocket from 'ws'
+          client.send(data, { binary: true }); // Good practice to specify binary for perf
+        }
+      });
+    });
 
-  // Handle process exit
-  ffmpegProcess.on('exit', () => {
-    console.log('FFmpeg process exited');
-  });
+    ffmpegProcess.stderr.on('data', data => {
+      console.error(`FFmpeg stderr for ${streamUrl}: ${data.toString()}`);
+    });
 
-  // Handle WebSocket close
-  ws.on('close', () => {
-    console.log('WebSocket connection closed');
-    ffmpegProcess.kill(); // Kill FFmpeg process when WebSocket connection is closed
-  });
+    ffmpegProcess.on('exit', (code, signal) => {
+      console.log(
+        `FFmpeg process for ${streamUrl} exited with code ${code} and signal ${signal}`
+      );
+      newStreamData.clients.forEach(client => client.close());
+      activeStreams.delete(streamUrl);
+    });
+
+    ffmpegProcess.on('error', err => {
+      console.error(`Failed to start FFmpeg for ${streamUrl}:`, err);
+      newStreamData.clients.forEach(client => client.close());
+      activeStreams.delete(streamUrl);
+    });
+  } else {
+    const existingStreamData = activeStreams.get(streamUrl)!;
+    existingStreamData.clients.add(ws);
+    console.log(
+      `Client added to existing stream ${streamUrl}. Total clients: ${existingStreamData
+        .clients.size}`
+    );
+  }
 });
