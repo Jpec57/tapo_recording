@@ -294,7 +294,8 @@
       if (!canvas || !titleElement) { return; }
 
       titleElement.textContent = `Loading: ${streamDef.friendlyName}...`;
-      const wsUrl = `ws://${window.location.hostname}:9999/${streamDef.key}`;
+      const isProd = !window.location.hostname?.includes('localhost')
+      const wsUrl = `ws${isProd ? 's' : ''}://${window.location.hostname}:9999/${streamDef.key}`;
       console.log(`Initializing JSMpeg for ${streamDef.friendlyName} on ${wsUrl}`);
 
       try {
