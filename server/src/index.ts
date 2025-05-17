@@ -7,7 +7,6 @@ import stopRecordingStream from './utils/stream/stopRecordingStream';
 import {getDefaultRtspUrl, getRtspUrl, StreamQuality } from './utils/stream/getRtspUrl';
 import path from 'path';
 import { WebSocketServer,WebSocket } from 'ws';
-import { isDev } from './utils/__isDev__';
 const bodyParser = require('body-parser');
 
 // Define an interface for your stream data to include the WebSocket type and heartbeatInterval
@@ -85,15 +84,16 @@ function noop() {} // Helper for ping
 
 wss.on('connection', (ws: ClientWebSocket, req: IncomingMessage) => { // Use the extended ClientWebSocket type
   console.log('New WebSocket connection');
-    const reqUrl = req.url || '';
-  // Expecting URL like /<streamKey>, e.g., /192.168.86.36 or /camera1
-  const pathParts = reqUrl.split('/').filter(part => part.length > 0);
-if (pathParts.length === 0) {
+  const reqUrl = req.url || '';
+    // Extract the stream key AFTER "/websocket/"
+  const match = reqUrl.match(/^\/websocket\/([a-zA-Z0-9._-]+)/);
+  const streamKey = match ? match[1] : null;
+if (!streamKey) {
     console.error('Stream key missing in WebSocket URL. Path should be /<stream_key>. Closing connection.');
     ws.close(1008, 'Stream key missing in WebSocket URL. Connect to ws://<host>/<stream_key>');
     return;
-  }
-  const streamKey = pathParts[0];
+}
+  
   ws.streamKey = streamKey; // Store for logging in close/error events
 
   const actualRtspUrl = rtspSourceConfig[streamKey];

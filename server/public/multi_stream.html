@@ -295,7 +295,7 @@
 
       titleElement.textContent = `Loading: ${streamDef.friendlyName}...`;
       const isProd = !window.location.hostname?.includes('localhost')
-      const wsUrl = `ws${isProd ? 's' : ''}://${window.location.hostname}${isProd ? '' : ':9999'}/${streamDef.key}`;
+      const wsUrl = `ws${isProd ? 's' : ''}://${window.location.hostname}${isProd ? '' : ':9999'}/websocket/${streamDef.key}`;
       console.log(`Initializing JSMpeg for ${streamDef.friendlyName} on ${wsUrl}`);
 
       try {
