@@ -1,51 +1,54 @@
 <!DOCTYPE html>
 <html>
-  <body>
-    <canvas id="canvas"></canvas>
-    <button id="playButton">Play</button>
-    <button id="muteButton">Mute</button>
 
-  </body>
+<body>
+  <canvas id="canvas"></canvas>
+  <button id="playButton">Play</button>
+  <button id="muteButton">Mute</button>
 
-  <script type="text/javascript" src="js/jsmpeg.min.js"></script>
-  <script type="text/javascript">
-    let player; // Declare player variable globally
+</body>
 
-    function initializePlayer() {
-      player = new JSMpeg.Player('ws://localhost:9999', {
-        canvas: document.getElementById('canvas'), // Canvas should be a canvas DOM element
-      });
+<script type="text/javascript" src="js/jsmpeg.min.js"></script>
+<script type="text/javascript">
+  let player; // Declare player variable globally
+
+  function initializePlayer() {
+    player = new JSMpeg.Player('ws://localhost:9999', {
+      canvas: document.getElementById('canvas'), // Canvas should be a canvas DOM element
+    });
+  }
+
+  document.getElementById('muteButton').addEventListener('click', function () {
+    console.log('muteButton clicked');
+    if (!player) {
+      console.warn('No player.');
+      return;
     }
 
-    document.getElementById('muteButton').addEventListener('click', function() {
-      console.log('muteButton clicked');
-      if (!player) {
-        console.warn('No player.');
-        return;
-      }
+    console.log('player.audioOut', player.audioOut)
+    console.log('player.audioOut.volume', player.audioOut.volume)
 
-      console.log('player.audioOut', player.audioOut)
+    if (player.audioOut) {
+      // Toggle mute/unmute
+      player.audioOut.volume = player.audioOut.volume === 0 ? 1 : 0;
       console.log('player.audioOut.volume', player.audioOut.volume)
+      // Update button text
+      document.getElementById('muteButton').innerText = player.audioOut.volume === 0 ? 'Unmute' : 'Mute';
+    }
+  });
 
-      if (player.audioOut) {
-        // Toggle mute/unmute
-        player.audioOut.volume = player.audioOut.volume === 0 ? 1 : 0;
-        console.log('player.audioOut.volume', player.audioOut.volume)
-        // Update button text
-        document.getElementById('muteButton').innerText = player.audioOut.volume === 0 ? 'Unmute' : 'Mute';
-      }
-    });
+  document.getElementById('playButton').addEventListener('click', function () {
+    // Check if AudioContext is suspended and resume it
+    if (typeof player !== 'undefined' && player.audioContext && player.audioContext.state === 'suspended') {
+      player.audioContext.resume().then(function () {
+        console.log('AudioContext resumed');
+        initializePlayer(); // Initialize player after AudioContext is resumed
+      });
+    } else {
+      initializePlayer(); // Initialize player if AudioContext is already active
+    }
+  });
+  initializePlayer();
+</script>
 
-    document.getElementById('playButton').addEventListener('click', function() {
-      // Check if AudioContext is suspended and resume it
-      if (typeof player !== 'undefined' && player.audioContext && player.audioContext.state === 'suspended') {
-        player.audioContext.resume().then(function() {
-          console.log('AudioContext resumed');
-          initializePlayer(); // Initialize player after AudioContext is resumed
-        });
-      } else {
-        initializePlayer(); // Initialize player if AudioContext is already active
-      }
-    });
-  </script>
 </html>
