@@ -1,13 +1,27 @@
+import { IncomingMessage } from 'http';
 import express, { Request, Response } from 'express';
-import { spawn } from 'child_process';
+import { ChildProcessWithoutNullStreams, spawn } from 'child_process';
 import { config } from 'dotenv';
 import recordStream from './utils/stream/recordStream';
 import stopRecordingStream from './utils/stream/stopRecordingStream';
-import getRtspUrl, { StreamQuality } from './utils/stream/getRtspUrl';
+import {getDefaultRtspUrl, getRtspUrl, StreamQuality } from './utils/stream/getRtspUrl';
 import path from 'path';
-import { WebSocketServer } from 'ws';
+import { WebSocketServer,WebSocket } from 'ws';
 import { isDev } from './utils/__isDev__';
 const bodyParser = require('body-parser');
+
+// Define an interface for your stream data to include the WebSocket type and heartbeatInterval
+interface StreamData {
+  process: ChildProcessWithoutNullStreams;
+  clients: Set<ClientWebSocket>; // Use the extended WebSocket type
+  heartbeatIntervalId?: NodeJS.Timeout; // Optional: To store the interval ID
+}
+
+// Extend WebSocket type to include isAlive property
+interface ClientWebSocket extends WebSocket {
+  isAlive?: boolean;
+    streamKey?: string; // Optional: Store the streamKey on the client for easier logging/debugging
+}
 
 const app: express.Application = express();
 const PORT: number | string = process.env.PORT || 3057;
@@ -46,7 +60,6 @@ const clientHeartbeats = new Map();
 app.post('/heartbeat', (req, res) => {
   const { timestamp } = req.body;
   const clientId = req.ip; // Assuming IP address as the client identifier
-  // Update the timestamp for the client
   clientHeartbeats.set(clientId, timestamp);
   res.sendStatus(200);
 });
@@ -64,138 +77,140 @@ app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
 });
 
+const rtspSourceConfig: Record<string, string> = {
+  'home_gym': getDefaultRtspUrl(StreamQuality.Low),
+  'rabbit_live': getRtspUrl('192.168.86.44'),
+};
+// --- WebSocket Server Logic ---
 const wss = new WebSocketServer({ port: 9999 });
-// wss.on('connection', ws => {
-//   console.log('WebSocket connection established');
+const activeStreams: Map<string, StreamData> = new Map();
+const INACTIVITY_TIMEOUT_MS = 5000; // 5 seconds
 
-//   const ffmpegParams = [
-//     '-rtsp_transport',
-//     'tcp',
-//     '-probesize',
-//     '10M',
-//     '-i', // specifies the input source from the RTSP stream.
-//     getRtspUrl(StreamQuality.Low),
-//     '-f',
-//     'mpegts',
-//     // codec video
-//     '-codec:v',
-//     'mpeg1video',
-//     //
-//     '-s',
-//     '1280x720',
-//     //
-//     //
-//     // '-c:v',
-//     // 'copy', //tells FFmpeg to copy the video stream without re-encoding, preserving its original format and quality.
-//     //
-//     '-r', // Rate
-//     '30',
-//     '-codec:a', //suitable audio codec
-//     'pcm_alaw',
-//     'pipe:1'
-//   ];
-//   // Spawn FFmpeg process to stream video
-//   const ffmpegProcess = spawn('ffmpeg', ffmpegParams);
+function noop() {} // Helper for ping
 
-//   console.log('=> Running ffmpeg ' + ffmpegParams.join(' '));
+wss.on('connection', (ws: ClientWebSocket, req: IncomingMessage) => { // Use the extended ClientWebSocket type
+    const reqUrl = req.url || '';
+  // Expecting URL like /<streamKey>, e.g., /192.168.86.36 or /camera1
+  const pathParts = reqUrl.split('/').filter(part => part.length > 0);
+if (pathParts.length === 0) {
+    console.error('Stream key missing in WebSocket URL. Path should be /<stream_key>. Closing connection.');
+    ws.close(1008, 'Stream key missing in WebSocket URL. Connect to ws://<host>/<stream_key>');
+    return;
+  }
+  const streamKey = pathParts[0];
+  ws.streamKey = streamKey; // Store for logging in close/error events
 
-//   // Pipe FFmpeg output to WebSocket
-//   ffmpegProcess.stdout.on('data', data => {
-//     ws.send(data); // Send video data to WebSocket clients
-//   });
+  const actualRtspUrl = rtspSourceConfig[streamKey];
 
-//   ffmpegProcess.stderr.on('data', data => {
-//     console.error(data.toString()); // Log ffmpeg errors to console
-//   });
+  if (!actualRtspUrl) {
+    console.error(`Invalid stream key: ${streamKey}. No RTSP source configured. URL: ${reqUrl}. Closing connection.`);
+    ws.close(1008, `Invalid stream key: ${streamKey}.`);
+    return;
+  }
 
-//   // Handle process exit
-//   ffmpegProcess.on('exit', () => {
-//     console.log('FFmpeg process exited');
-//   });
+  // Initialize client as alive
+  ws.isAlive = true;
 
-//   // Handle WebSocket close
-//   ws.on('close', () => {
-//     console.log('WebSocket connection closed');
-//     ffmpegProcess.kill(); // Kill FFmpeg process when WebSocket connection is closed
-//   });
-// });
+  ws.on('pong', () => {
+    ws.isAlive = true; // Client is responsive
+  });
+ console.log(`WebSocket connection established for stream key: "${streamKey}" (RTSP: ${actualRtspUrl})`);
 
-const activeStreams: Map<
-  string,
-  { process: any; clients: Set<any> }
-> = new Map();
-
-wss.on('connection', ws => {
-  const streamUrl = getRtspUrl(StreamQuality.Low);
-  console.log(`WebSocket connection established for stream: ${streamUrl}`);
-
-  if (!activeStreams.has(streamUrl)) {
-    console.log(`No active FFmpeg for ${streamUrl}. Starting new process.`);
+  if (!activeStreams.has(streamKey)) {
+    console.log(`No active FFmpeg for "${streamKey}". Starting new process.`);
     const ffmpegParams = [
-      '-rtsp_transport',
-      'tcp',
-      '-probesize',
-      '10M',
-      '-i',
-      streamUrl,
-      '-f',
-      'mpegts',
-      '-codec:v',
-      'mpeg1video',
-      '-s',
-      '1280x720',
-      '-r',
-      '30',
-      '-codec:a',
-      'pcm_alaw',
+      '-rtsp_transport', 'tcp',
+      '-probesize', '10M',
+      '-i', actualRtspUrl, // Use the dynamically looked-up RTSP URL
+      '-f', 'mpegts',
+      '-codec:v', 'mpeg1video',
+      '-s', '1280x720',
+      '-r', '30',
+      '-codec:a', 'pcm_alaw',
       'pipe:1'
     ];
     const ffmpegProcess = spawn('ffmpeg', ffmpegParams);
-    console.log(
-      `=> Spawning FFmpeg for ${streamUrl}: ${ffmpegParams.join(' ')}`
-    );
+    console.log(`=> Spawning FFmpeg for "${streamKey}": ${ffmpegParams.join(' ')}`);
 
-    const newStreamData = { process: ffmpegProcess, clients: new Set<any>() };
-    activeStreams.set(streamUrl, newStreamData);
-    newStreamData.clients.add(ws); // Add the first client
-
-    console.log(
-      `Client added to new stream ${streamUrl}. Total clients: ${newStreamData
-        .clients.size}`
-    );
+    const newStreamData: StreamData = {
+      process: ffmpegProcess,
+      clients: new Set<ClientWebSocket>(),
+      heartbeatIntervalId: setInterval(() => {
+        const currentStreamData = activeStreams.get(streamKey);
+        if (!currentStreamData) {
+          clearInterval(newStreamData.heartbeatIntervalId!);
+          return;
+        }
+        currentStreamData.clients.forEach(clientWs => {
+          if (!clientWs.isAlive) {
+            console.log(`Client for stream "${clientWs.streamKey || 'unknown'}" unresponsive. Terminating.`);
+            clientWs.terminate();
+            return;
+          }
+          clientWs.isAlive = false;
+          clientWs.ping(noop);
+        });
+      }, INACTIVITY_TIMEOUT_MS)
+    };
+    activeStreams.set(streamKey, newStreamData);
+    newStreamData.clients.add(ws);
+    console.log(`Client added to new stream "${streamKey}". Total clients: ${newStreamData.clients.size}`);
 
     ffmpegProcess.stdout.on('data', data => {
       newStreamData.clients.forEach(client => {
         if (client.readyState === WebSocket.OPEN) {
-          // WebSocket from 'ws'
-          client.send(data, { binary: true }); // Good practice to specify binary for perf
+          client.send(data, { binary: true });
         }
       });
     });
 
     ffmpegProcess.stderr.on('data', data => {
-      console.error(`FFmpeg stderr for ${streamUrl}: ${data.toString()}`);
+      console.error(`FFmpeg stderr for "${streamKey}": ${data.toString()}`);
     });
 
-    ffmpegProcess.on('exit', (code, signal) => {
-      console.log(
-        `FFmpeg process for ${streamUrl} exited with code ${code} and signal ${signal}`
-      );
-      newStreamData.clients.forEach(client => client.close());
-      activeStreams.delete(streamUrl);
-    });
+    const onFFmpegEnd = (type: 'exit' | 'error', codeOrErr?: any) => {
+      const message = type === 'exit' ? `exited with code ${codeOrErr?.code} and signal ${codeOrErr?.signal}` : `failed/errored: ${codeOrErr}`;
+      console.log(`FFmpeg process for "${streamKey}" ${message}`);
 
-    ffmpegProcess.on('error', err => {
-      console.error(`Failed to start FFmpeg for ${streamUrl}:`, err);
-      newStreamData.clients.forEach(client => client.close());
-      activeStreams.delete(streamUrl);
-    });
+      const streamDataToEnd = activeStreams.get(streamKey);
+      if (streamDataToEnd) {
+        if (streamDataToEnd.heartbeatIntervalId) {
+          clearInterval(streamDataToEnd.heartbeatIntervalId);
+          console.log(`Cleared heartbeat interval for stream "${streamKey}" on FFmpeg ${type}.`);
+        }
+        streamDataToEnd.clients.forEach(client => client.terminate());
+        activeStreams.delete(streamKey);
+        console.log(`Stream "${streamKey}" removed from activeStreams.`);
+      }
+    };
+    ffmpegProcess.on('exit', (code, signal) => onFFmpegEnd('exit', { code, signal }));
+    ffmpegProcess.on('error', (err) => onFFmpegEnd('error', err));
+
   } else {
-    const existingStreamData = activeStreams.get(streamUrl)!;
+    const existingStreamData = activeStreams.get(streamKey)!;
     existingStreamData.clients.add(ws);
-    console.log(
-      `Client added to existing stream ${streamUrl}. Total clients: ${existingStreamData
-        .clients.size}`
-    );
+    console.log(`Client added to existing stream "${streamKey}". Total clients: ${existingStreamData.clients.size}`);
   }
+
+  ws.on('error', (err) => {
+    console.error(`WebSocket error for client on stream "${ws.streamKey || 'unknown'}":`, err);
+  });
+
+  ws.on('close', (code, reason) => {
+    const reasonMsg = reason.length > 0 ? reason.toString() : 'No reason given';
+    console.log(`WebSocket connection closed for client on stream "${ws.streamKey || 'unknown'}" (Code: ${code}, Reason: ${reasonMsg})`);
+    const streamData = activeStreams.get(ws.streamKey || ''); // Use stored streamKey
+    if (streamData) {
+      streamData.clients.delete(ws);
+      console.log(`Client removed from stream "${ws.streamKey}". Remaining clients: ${streamData.clients.size}`);
+      if (streamData.clients.size === 0) {
+        if (streamData.process && streamData.process.exitCode === null && streamData.process.signalCode === null) {
+          console.log(`No more clients for "${ws.streamKey}", signaling FFmpeg to stop.`);
+          streamData.process.kill('SIGINT');
+        } else {
+          console.log(`No more clients for "${ws.streamKey}", FFmpeg process likely already ended.`);
+        }
+      }
+    }
+  });
 });

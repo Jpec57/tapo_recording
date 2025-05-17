@@ -1,62 +1,153 @@
 <!DOCTYPE html>
 <html>
 
+<head>
+  <title>Multi-Stream Viewer</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      margin: 20px;
+    }
+
+    .stream-container {
+      margin-bottom: 20px;
+      border: 1px solid #ccc;
+      padding: 10px;
+    }
+
+    canvas {
+      max-width: 100%;
+      background-color: #333;
+    }
+
+    .controls button {
+      margin-right: 5px;
+    }
+  </style>
+</head>
+
 <body>
-  <canvas id="canvas"></canvas>
-  <button id="playButton">Play</button>
-  <button id="muteButton">Mute</button>
+  <h1>Multi-Stream RTSP Viewer</h1>
 
-</body>
+  <div id="stream-controls">
+    <label for="stream-select">Select Stream:</label>
+    <select id="stream-select">
+    </select>
+    <button id="loadStreamButton">Load Stream</button>
+  </div>
 
-<script type="text/javascript" src="js/jsmpeg.min.js"></script>
-<script type="text/javascript">
-  let player; // Declare player variable globally
+  <div class.stream-container>
+    <h2 id="currentStreamTitle">No Stream Loaded</h2>
+    <canvas id="video-canvas"></canvas>
+    <div class="controls">
+      <button id="playButton" disabled>Play</button>
+      <button id="stopButton" disabled>Stop</button>
+    </div>
+  </div>
 
-  function initializePlayer() {
-    player = new JSMpeg.Player('ws://localhost:9999', {
-      canvas: document.getElementById('canvas'), // Canvas should be a canvas DOM element
+  <script type="text/javascript" src="js/jsmpeg.min.js"></script>
+  <script type="text/javascript">
+    let player;
+    const canvas = document.getElementById('video-canvas');
+    const playButton = document.getElementById('playButton');
+    const stopButton = document.getElementById('stopButton');
+    const streamSelect = document.getElementById('stream-select');
+    const loadStreamButton = document.getElementById('loadStreamButton');
+    const currentStreamTitle = document.getElementById('currentStreamTitle');
+
+    // Define the available streams (keys must match rtspSourceConfig on server)
+    const availableStreams = {
+      "home_gym": "Home Gym",
+      "rabbit_live": "Rabbit Live",
+    };
+
+    // Populate dropdown
+    for (const key in availableStreams) {
+      const option = document.createElement('option');
+      option.value = key;
+      option.textContent = availableStreams[key];
+      streamSelect.appendChild(option);
+    }
+
+    function updateButtonStates(isPlaying) {
+      playButton.disabled = isPlaying;
+      stopButton.disabled = !isPlaying;
+    }
+
+    function initializePlayer(streamKey) {
+      if (player) {
+        try {
+          player.destroy(); // Clean up existing player
+        } catch (e) {
+          console.warn("Error destroying previous player:", e);
+        }
+        player = null;
+      }
+
+      if (!streamKey) {
+        currentStreamTitle.textContent = "No Stream Selected";
+        updateButtonStates(false);
+        return;
+      }
+
+      currentStreamTitle.textContent = `Loading: ${availableStreams[streamKey] || streamKey}...`;
+      const wsUrl = `ws://${window.location.hostname}:9999/${streamKey}`;
+
+      try {
+        player = new JSMpeg.Player(wsUrl, {
+          canvas: canvas,
+          autoplay: true, // Autoplay new stream
+          onPlay: () => {
+            console.log(`Playing stream: ${streamKey}`);
+            currentStreamTitle.textContent = `Playing: ${availableStreams[streamKey] || streamKey}`;
+            updateButtonStates(true);
+          },
+          onPause: () => { // Or onEnded, onError
+            console.log(`Stream paused/ended: ${streamKey}`);
+            // currentStreamTitle.textContent = `Paused: ${availableStreams[streamKey] || streamKey}`;
+            updateButtonStates(false);
+          },
+          onStall: () => {
+            console.warn(`Stream stalled: ${streamKey}`);
+            currentStreamTitle.textContent = `Stalled: ${availableStreams[streamKey] || streamKey}`;
+          },
+          // JSMpeg options might vary for error handling
+        });
+        // Initial button state
+        updateButtonStates(player.isPlaying); // Check if autoplay was successful
+
+      } catch (e) {
+        console.error("Failed to initialize JSMpeg Player:", e);
+        currentStreamTitle.textContent = `Error loading: ${availableStreams[streamKey] || streamKey}`;
+        updateButtonStates(false);
+      }
+    }
+
+    loadStreamButton.addEventListener('click', function () {
+      const selectedStreamKey = streamSelect.value;
+      initializePlayer(selectedStreamKey);
     });
-  }
 
-  document.getElementById('muteButton').addEventListener('click', function () {
-    console.log('muteButton clicked');
-    if (!player) {
-      console.warn('No player.');
-      return;
-    }
+    playButton.addEventListener('click', function () {
+      if (player) {
+        player.play();
+      }
+    });
 
-    console.log('player.audioOut', player.audioOut)
-    console.log('player.audioOut.volume', player.audioOut.volume)
+    stopButton.addEventListener('click', function () {
+      if (player) {
+        player.stop();
+        // After stopping, you might want to clear the canvas or show a message
+        currentStreamTitle.textContent = `Stopped: ${availableStreams[player.url.split('/').pop()] || player.url.split('/').pop()}`; // Update title
+        updateButtonStates(false);
+      }
+    });
 
-    if (player.audioOut) {
-      // Toggle mute/unmute
-      player.audioOut.volume = player.audioOut.volume === 0 ? 1 : 0;
-      console.log('player.audioOut.volume', player.audioOut.volume)
-      // Update button text
-      document.getElementById('muteButton').innerText = player.audioOut.volume === 0 ? 'Unmute' : 'Mute';
-    }
-  });
+    // Optionally, load a default stream on page load
+    // initializePlayer(Object.keys(availableStreams)[0]); // Load the first stream by default
+    updateButtonStates(false); // Initial state before any stream is loaded
 
-  document.getElementById('playButton').addEventListener('click', function () {
-    // Check if AudioContext is suspended and resume it
-    if (typeof player !== 'undefined' && player.audioContext && player.audioContext.state === 'suspended') {
-      player.audioContext.resume().then(function () {
-        console.log('AudioContext resumed');
-        initializePlayer(); // Initialize player after AudioContext is resumed
-      });
-    } else {
-      initializePlayer(); // Initialize player if AudioContext is already active
-    }
-  });
-  initializePlayer();
-
-  window.addEventListener('beforeunload', function (event) {
-    console.log('Attempting to destroy player on beforeunload...');
-    if (player) {
-      player.destroy(); // JSMpeg's destroy method should close the WebSocket
-      console.log('Player destroyed.');
-    }
-  });
-</script>
+  </script>
+</body>
 
 </html>
