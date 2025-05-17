@@ -49,6 +49,14 @@
     }
   });
   initializePlayer();
+
+  window.addEventListener('beforeunload', function (event) {
+    console.log('Attempting to destroy player on beforeunload...');
+    if (player) {
+      player.destroy(); // JSMpeg's destroy method should close the WebSocket
+      console.log('Player destroyed.');
+    }
+  });
 </script>
 
 </html>
