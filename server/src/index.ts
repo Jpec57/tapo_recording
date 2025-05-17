@@ -84,6 +84,7 @@ const INACTIVITY_TIMEOUT_MS = 5000; // 5 seconds
 function noop() {} // Helper for ping
 
 wss.on('connection', (ws: ClientWebSocket, req: IncomingMessage) => { // Use the extended ClientWebSocket type
+  console.log('New WebSocket connection');
     const reqUrl = req.url || '';
   // Expecting URL like /<streamKey>, e.g., /192.168.86.36 or /camera1
   const pathParts = reqUrl.split('/').filter(part => part.length > 0);
