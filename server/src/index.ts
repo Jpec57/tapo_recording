@@ -4,9 +4,10 @@ import { ChildProcessWithoutNullStreams, spawn } from 'child_process';
 import { config } from 'dotenv';
 import recordStream from './utils/stream/recordStream';
 import stopRecordingStream from './utils/stream/stopRecordingStream';
-import {getDefaultRtspUrl, getRtspUrl, StreamQuality } from './utils/stream/getRtspUrl';
+import {getRemoteRtspUrl, getRtspUrl, StreamQuality } from './utils/stream/getRtspUrl';
 import path from 'path';
 import { WebSocketServer,WebSocket } from 'ws';
+import { isDev } from './utils/__isDev__';
 const bodyParser = require('body-parser');
 
 // Define an interface for your stream data to include the WebSocket type and heartbeatInterval
@@ -41,6 +42,7 @@ app.get('/record/start', (req: Request, res: Response): void => {
   const duration: number = req.query.duration
     ? parseInt(req.query.duration as string, 10)
     : DEFAULT_DURATION;
+  //TODO
   recordStream(duration, res);
 });
 
@@ -71,9 +73,17 @@ app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
 });
 
-const rtspSourceConfig: Record<string, string> = {
-  'home_gym': getDefaultRtspUrl(StreamQuality.Low),
-  'rabbit_live': getRtspUrl('192.168.86.44'),
+const rtspSourceConfig: Record<string, string> = isDev() ? {
+  'home_gym': getRtspUrl(process.env.TAPO_LOCAL_IP!.toString(), 554, StreamQuality.Low),
+  'home_gym_high': getRtspUrl(process.env.TAPO_LOCAL_IP!.toString(), 554, StreamQuality.High),
+  'home_gym_2': getRtspUrl(process.env.TAPO_LOCAL_IP_2!.toString(), 554, StreamQuality.Low),
+  'home_gym_2_high': getRtspUrl(process.env.TAPO_LOCAL_IP_2!.toString(), 554, StreamQuality.High),
+  'rabbit_live': getRtspUrl('192.168.86.44', 554, StreamQuality.High),
+} : {
+  'home_gym': getRemoteRtspUrl(5541),
+  'home_gym_high': getRemoteRtspUrl(5541, StreamQuality.High),
+  'home_gym_2': getRemoteRtspUrl(5542, StreamQuality.Low),
+  'home_gym_2_high': getRemoteRtspUrl(5542,StreamQuality.High),
 };
 // --- WebSocket Server Logic ---
 const wss = new WebSocketServer({ port: 9999 });

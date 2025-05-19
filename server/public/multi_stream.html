@@ -258,15 +258,16 @@
 
   <script type="text/javascript" src="js/jsmpeg.min.js"></script>
   <script type="text/javascript">
+    const urlParams = new URLSearchParams(window.location.search);
+    const highQuality = urlParams.get('quality') === 'high';
+    console.log(`High Quality: ${highQuality ? "Yes" : "No"}`);
     const ALL_AVAILABLE_STREAMS = {
-      "home_gym": "Home Gym",
-      "rabbit_live": "Rabbit Live",
-      //      "camera3": "Office Cam",
-      //      "camera4": "Front Door",
-      //      "camera5": "Backyard Cam"
+      [`home_gym${highQuality ? '_high' : ''}`]: "Home Gym",
+      [`home_gym_2${highQuality ? '_high' : ''}`]: "Home Gym 2",
+      [`rabbit_live${highQuality ? '_high' : ''}`]: "Rabbit Live",
     };
 
-    const INITIAL_STREAMS_TO_SHOW_KEYS = ["home_gym"];
+    const INITIAL_STREAMS_TO_SHOW_KEYS = ["home_gym", "home_gym_2"];
     const MAX_STREAMS = 4;
 
     const streamLayoutContainer = document.getElementById('streamLayout');

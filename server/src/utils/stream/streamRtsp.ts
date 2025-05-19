@@ -1,11 +1,11 @@
-import { getDefaultRtspUrl } from './getRtspUrl';
+import { getRemoteRtspUrl } from './getRtspUrl';
 import { spawn } from 'child_process';
 import { Request, Response } from 'express';
 /**
  * @deprecated Not used
  */
 const streamRtsp = (req: Request, res: Response): void => {
-  const rtspUrl = getDefaultRtspUrl();
+  const rtspUrl = getRemoteRtspUrl(5541);
 
   const params = [
     '-rtsp_transport',

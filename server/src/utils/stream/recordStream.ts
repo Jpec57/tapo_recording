@@ -4,13 +4,13 @@ import getTimeFilename from '../getTimeFilename';
 import fs from 'fs';
 import stopRecordingStream from './stopRecordingStream';
 import getPidFilePath from './getPidFilePath';
-import { getDefaultRtspUrl } from './getRtspUrl';
+import { getRemoteRtspUrl } from './getRtspUrl';
 
 const recordStream = (duration: number, res: Response): void => {
   const outputFileName: string = getTimeFilename('.mp4');
   const logFileName: string = getTimeFilename('.log');
   const pidFilePath = getPidFilePath();
-  const rtspUrl = getDefaultRtspUrl();
+  const rtspUrl = getRemoteRtspUrl(5541);
 
   console.log({ outputFileName });
 
