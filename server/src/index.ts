@@ -2,13 +2,12 @@ import { get, IncomingMessage } from 'http';
 import express, { Request, Response } from 'express';
 import { ChildProcessWithoutNullStreams, spawn } from 'child_process';
 import { config } from 'dotenv';
-import recordStream from './utils/stream/recordStream';
-import stopRecordingStream from './utils/stream/stopRecordingStream';
-import {getRemoteRtspUrl, getRtspUrl, StreamQuality } from './utils/stream/getRtspUrl';
+import {startStreamRecordings} from './utils/stream/startStreamRecordings';
+import {stopStreamRecordings} from './utils/stream/stopStreamRecordings';
 import path from 'path';
 import { WebSocketServer,WebSocket } from 'ws';
-import { isDev } from './utils/__isDev__';
 import { getRtspSourceConfigs } from './getRtspSourceConfigs';
+import { FfmpegCommand } from 'fluent-ffmpeg';
 const bodyParser = require('body-parser');
 
 // Define an interface for your stream data to include the WebSocket type and heartbeatInterval
@@ -34,28 +33,31 @@ app.use(express.static(publicDirectoryPath));
 app.use(bodyParser.json());
 
 const DEFAULT_DURATION: number = 5 * 60; // 5 minutes
-
 app.get('/', (req: Request, res: Response): void => {
   res.send('<a href="/stream">Go to Stream</a>');
 });
 
 app.get('/record/start', (req: Request, res: Response): void => {
-  const duration: number = req.query.duration
-    ? parseInt(req.query.duration as string, 10)
-    : DEFAULT_DURATION;
   let streamKeys: string[] = [];
   if (typeof req.query.streamKeys === 'string') {
     streamKeys = [req.query.streamKeys];
   } else if (Array.isArray(req.query.streamKeys)) {
     streamKeys = req.query.streamKeys as string[];
   } 
-  recordStream(duration, res, streamKeys);
+  const maxDuration = req.query.duration ? parseInt(req.query.duration as string, 10) : undefined;
+  startStreamRecordings(res, streamKeys, maxDuration);
 });
 
 app.get('/record/stop', (req: Request, res: Response): void => {
-  stopRecordingStream(null);
-  res.send('Stopped recording');
-  res.end();
+  let streamKeys: string[] = [];
+  if (typeof req.query.streamKeys === 'string') {
+    streamKeys = [req.query.streamKeys];
+  } else if (Array.isArray(req.query.streamKeys)) {
+    streamKeys = (req.query.streamKeys as any[]).filter(key => typeof key === 'string');
+  }
+
+  // The stopStreamRecordings function now handles sending the response
+  stopStreamRecordings(res, streamKeys);
 });
 
 app.get('/killall', (req: Request, res: Response): void => {
