@@ -8,6 +8,8 @@ import path from 'path';
 import { WebSocketServer,WebSocket } from 'ws';
 import { getRtspSourceConfigs } from './getRtspSourceConfigs';
 import { FfmpegCommand } from 'fluent-ffmpeg';
+import { getStreamRecordingStatus } from './utils/stream/getStreamRecordingStatus';
+import { handleSseUpdates } from './utils/stream/handleSseUpdates';
 const bodyParser = require('body-parser');
 
 // Define an interface for your stream data to include the WebSocket type and heartbeatInterval
@@ -80,6 +82,12 @@ app.get('/stream', (req: Request, res: Response): void => {
 app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
 });
+
+app.get('/record/status', (req: Request, res: Response): void => {
+  getStreamRecordingStatus(res);
+});
+
+app.get('/record/updates', handleSseUpdates);
 
 const rtspSourceConfigs = getRtspSourceConfigs();
 // --- WebSocket Server Logic ---
