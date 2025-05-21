@@ -6,7 +6,11 @@ import stopRecordingStream from './stopRecordingStream';
 import getPidFilePath from './getPidFilePath';
 import { getRemoteRtspUrl } from './getRtspUrl';
 
-const recordStream = (duration: number, res: Response): void => {
+const recordStream = (
+  duration: number,
+  res: Response,
+  streamKeys: string[]
+): void => {
   const outputFileName: string = getTimeFilename('.mp4');
   const logFileName: string = getTimeFilename('.log');
   const pidFilePath = getPidFilePath();

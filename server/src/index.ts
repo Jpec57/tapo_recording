@@ -1,4 +1,4 @@
-import { IncomingMessage } from 'http';
+import { get, IncomingMessage } from 'http';
 import express, { Request, Response } from 'express';
 import { ChildProcessWithoutNullStreams, spawn } from 'child_process';
 import { config } from 'dotenv';
@@ -8,6 +8,7 @@ import {getRemoteRtspUrl, getRtspUrl, StreamQuality } from './utils/stream/getRt
 import path from 'path';
 import { WebSocketServer,WebSocket } from 'ws';
 import { isDev } from './utils/__isDev__';
+import { getRtspSourceConfigs } from './getRtspSourceConfigs';
 const bodyParser = require('body-parser');
 
 // Define an interface for your stream data to include the WebSocket type and heartbeatInterval
@@ -42,8 +43,13 @@ app.get('/record/start', (req: Request, res: Response): void => {
   const duration: number = req.query.duration
     ? parseInt(req.query.duration as string, 10)
     : DEFAULT_DURATION;
-  //TODO
-  recordStream(duration, res);
+  let streamKeys: string[] = [];
+  if (typeof req.query.streamKeys === 'string') {
+    streamKeys = [req.query.streamKeys];
+  } else if (Array.isArray(req.query.streamKeys)) {
+    streamKeys = req.query.streamKeys as string[];
+  } 
+  recordStream(duration, res, streamKeys);
 });
 
 app.get('/record/stop', (req: Request, res: Response): void => {
@@ -73,18 +79,7 @@ app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
 });
 
-const rtspSourceConfig: Record<string, string> = isDev() ? {
-  'home_gym': getRtspUrl(process.env.TAPO_LOCAL_IP!.toString(), 554, StreamQuality.Low),
-  'home_gym_high': getRtspUrl(process.env.TAPO_LOCAL_IP!.toString(), 554, StreamQuality.High),
-  'home_gym_2': getRtspUrl(process.env.TAPO_LOCAL_IP_2!.toString(), 554, StreamQuality.Low),
-  'home_gym_2_high': getRtspUrl(process.env.TAPO_LOCAL_IP_2!.toString(), 554, StreamQuality.High),
-  'rabbit_live': getRtspUrl('192.168.86.44', 554, StreamQuality.High),
-} : {
-  'home_gym': getRemoteRtspUrl(5541),
-  'home_gym_high': getRemoteRtspUrl(5541, StreamQuality.High),
-  'home_gym_2': getRemoteRtspUrl(5542, StreamQuality.Low),
-  'home_gym_2_high': getRemoteRtspUrl(5542,StreamQuality.High),
-};
+const rtspSourceConfigs = getRtspSourceConfigs();
 // --- WebSocket Server Logic ---
 const wss = new WebSocketServer({ port: 9999 });
 const activeStreams: Map<string, StreamData> = new Map();
@@ -106,7 +101,7 @@ if (!streamKey) {
   
   ws.streamKey = streamKey; // Store for logging in close/error events
 
-  const actualRtspUrl = rtspSourceConfig[streamKey];
+  const actualRtspUrl = rtspSourceConfigs[streamKey];
 
   if (!actualRtspUrl) {
     console.error(`Invalid stream key: ${streamKey}. No RTSP source configured. URL: ${reqUrl}. Closing connection.`);
