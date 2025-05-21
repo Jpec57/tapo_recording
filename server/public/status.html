@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Live Recording Status</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            margin: 20px;
+        }
+
+        ul {
+            list-style-type: none;
+            padding: 0;
+        }
+
+        li {
+            padding: 8px;
+            margin-bottom: 5px;
+            background-color: #f0f0f0;
+            border-radius: 4px;
+        }
+
+        li.started {
+            background-color: #e6ffed;
+            color: #28a745;
+        }
+
+        li.ended,
+        li.stopped_manually {
+            background-color: #ffe6e6;
+            color: #dc3545;
+        }
+
+        li.error {
+            background-color: #fff3cd;
+            color: #856404;
+        }
+
+        .log {
+            margin-top: 20px;
+            border-top: 1px solid #ccc;
+            padding-top: 10px;
+        }
+
+        .log p {
+            font-size: 0.9em;
+            margin: 2px 0;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>Live Recording Status</h1>
+    <a href="/stream">Go to Stream</a>
+    <p>Currently Active Recordings (<span id="activeCount">0</span>):</p>
+    <ul id="activeRecordingsList">
+    </ul>
+
+    <h2>Event Log:</h2>
+    <div id="eventLog" class="log">
+        <p><em>Listening for updates...</em></p>
+    </div>
+
+    <script>
+        const activeRecordingsList = document.getElementById('activeRecordingsList');
+        const activeCountSpan = document.getElementById('activeCount');
+        const eventLog = document.getElementById('eventLog');
+
+        function logEvent(message, type = 'info') {
+            const p = document.createElement('p');
+            p.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+            p.className = type;
+            // Prepend to keep newest on top
+            eventLog.insertBefore(p, eventLog.firstChild);
+        }
+
+        function updateActiveList(activeKeys) {
+            activeRecordingsList.innerHTML = ''; // Clear current list
+            activeCountSpan.textContent = activeKeys.length;
+            if (activeKeys.length > 0) {
+                activeKeys.forEach(key => {
+                    const listItem = document.createElement('li');
+                    listItem.textContent = `Recording: ${key}`;
+                    listItem.className = 'started'; // Default class for active items
+                    activeRecordingsList.appendChild(listItem);
+                });
+            } else {
+                const listItem = document.createElement('li');
+                listItem.textContent = 'No active recordings.';
+                activeRecordingsList.appendChild(listItem);
+            }
+        }
+
+        const eventSource = new EventSource('/record/updates');
+
+        eventSource.onopen = function () {
+            logEvent('SSE connection opened.', 'info');
+        };
+
+        // Listen for the specific "initial_status" event
+        eventSource.addEventListener('initial_status', function (event) {
+            const data = JSON.parse(event.data);
+            logEvent(`Initial status received. Active: ${data.active.join(', ') || 'None'}`, 'info');
+            updateActiveList(data.active);
+        });
+
+        // Listen for general "recording_update" events
+        eventSource.addEventListener('recording_update', function (event) {
+            const data = JSON.parse(event.data);
+            logEvent(`Update for '${data.key}': ${data.type}. Error: ${data.error || 'N/A'}`, data.type);
+
+            // Always update the list of active recordings based on the latest from server
+            if (data.activeRecordings) {
+                updateActiveList(data.activeRecordings);
+            }
+        });
+
+        eventSource.onerror = function (err) {
+            logEvent('SSE connection error. Will attempt to reconnect.', 'error');
+            console.error("EventSource failed:", err);
+            // EventSource will automatically try to reconnect.
+        };
+    </script>
+</body>
+
+</html>

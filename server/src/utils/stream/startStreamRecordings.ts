@@ -4,6 +4,7 @@ import path from 'path';
 import fs from 'fs';
 import { getRtspSourceConfigs } from '../../getRtspSourceConfigs';
 import { activeRecordings } from './sharedRecordingState';
+import { broadcastToSseClients } from './handleSseUpdates';
 
 const ensureDirectoryExistence = (filePath: string): void => {
   const dirname = path.dirname(filePath);
@@ -36,9 +37,7 @@ const startStreamRecordings = (
     console.log(`[RECORDING][Process] key: '${trimmedKey}'`);
 
     if (activeRecordings.has(trimmedKey)) {
-      console.log(
-        `[RECORDING][DUPLICATE] key '${trimmedKey}' already active.`
-      );
+      console.log(`[RECORDING][DUPLICATE] key '${trimmedKey}' already active.`);
       failedRecordingsInfo.push({
         key: trimmedKey,
         error: 'Recording already in progress'
@@ -76,11 +75,24 @@ const startStreamRecordings = (
             `[RECORDING][START] FFmpeg started for key: '${trimmedKey}'. Command: ${commandLine}`
           ); // LOG
           activeRecordings.set(trimmedKey, command);
+          //
+          broadcastToSseClients({
+            type: 'started',
+            key: trimmedKey,
+            activeRecordings: Array.from(activeRecordings.keys())
+          });
+          //
         })
         .on('end', () => {
           console.log(`[RECORDING][END] key: '${trimmedKey}': ${outputPath}`);
           successfulRecordingsDb.push(outputPath);
           activeRecordings.delete(trimmedKey);
+          broadcastToSseClients({
+            type: 'ended',
+            key: trimmedKey,
+            path: outputPath,
+            activeRecordings: Array.from(activeRecordings.keys())
+          });
           resolve(outputPath);
         })
         .on('error', (err: Error, stdout: string, stderr: string) => {
@@ -102,6 +114,12 @@ const startStreamRecordings = (
             // SIGINT or SIGTERM
             // Logic to decide if this error should be in failedRecordingsInfo
           }
+          broadcastToSseClients({
+            type: 'stopped_manually',
+            key: trimmedKey,
+            error: err.message,
+            activeRecordings: Array.from(activeRecordings.keys())
+          });
           reject(err);
         })
         .run();

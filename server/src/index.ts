@@ -34,9 +34,13 @@ const publicDirectoryPath = path.join(__dirname, '../public');
 app.use(express.static(publicDirectoryPath));
 app.use(bodyParser.json());
 
-const DEFAULT_DURATION: number = 5 * 60; // 5 minutes
+// const DEFAULT_DURATION: number = 5 * 60; // 5 minutes
+// app.get('/', (req: Request, res: Response): void => {
+//   res.send('<a href="/stream">Go to Stream</a>');
+// });
+
 app.get('/', (req: Request, res: Response): void => {
-  res.send('<a href="/stream">Go to Stream</a>');
+  res.sendFile(path.join(__dirname, '../public', 'status.html'));
 });
 
 app.get('/record/start', (req: Request, res: Response): void => {
@@ -62,10 +66,6 @@ app.get('/record/stop', (req: Request, res: Response): void => {
   stopStreamRecordings(res, streamKeys);
 });
 
-app.get('/killall', (req: Request, res: Response): void => {
-  spawn('pkill', ['ffmpeg']);
-  res.send('All streams killed');
-});
 
 const clientHeartbeats = new Map();
 app.post('/heartbeat', (req, res) => {
@@ -78,6 +78,7 @@ app.post('/heartbeat', (req, res) => {
 app.get('/stream', (req: Request, res: Response): void => {
   res.sendFile(path.join(__dirname, '../public', 'multi_stream.html'));
 });
+
 
 app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);

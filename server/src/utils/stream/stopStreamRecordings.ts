@@ -6,8 +6,7 @@ const stopStreamRecordings = (
   streamKeysToStop: string[]
 ): void => {
   if (!streamKeysToStop || streamKeysToStop.length === 0) {
-    res.status(400).send('No stream keys provided to stop.');
-    return;
+    streamKeysToStop = Array.from(activeRecordings.keys());
   }
 
   const stoppedSuccessfully: string[] = [];
