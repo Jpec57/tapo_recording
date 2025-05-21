@@ -10,6 +10,7 @@ import { getRtspSourceConfigs } from './getRtspSourceConfigs';
 import { FfmpegCommand } from 'fluent-ffmpeg';
 import { getStreamRecordingStatus } from './utils/stream/getStreamRecordingStatus';
 import { handleSseUpdates } from './utils/stream/handleSseUpdates';
+import recordRouter from './middlewares/recordMiddleware';
 const bodyParser = require('body-parser');
 
 // Define an interface for your stream data to include the WebSocket type and heartbeatInterval
@@ -34,38 +35,11 @@ const publicDirectoryPath = path.join(__dirname, '../public');
 app.use(express.static(publicDirectoryPath));
 app.use(bodyParser.json());
 
-// const DEFAULT_DURATION: number = 5 * 60; // 5 minutes
-// app.get('/', (req: Request, res: Response): void => {
-//   res.send('<a href="/stream">Go to Stream</a>');
-// });
-
 app.get('/', (req: Request, res: Response): void => {
   res.sendFile(path.join(__dirname, '../public', 'status.html'));
 });
 
-app.get('/record/start', (req: Request, res: Response): void => {
-  let streamKeys: string[] = [];
-  if (typeof req.query.streamKeys === 'string') {
-    streamKeys = [req.query.streamKeys];
-  } else if (Array.isArray(req.query.streamKeys)) {
-    streamKeys = req.query.streamKeys as string[];
-  } 
-  const maxDuration = req.query.duration ? parseInt(req.query.duration as string, 10) : undefined;
-  startStreamRecordings(res, streamKeys, maxDuration);
-});
-
-app.get('/record/stop', (req: Request, res: Response): void => {
-  let streamKeys: string[] = [];
-  if (typeof req.query.streamKeys === 'string') {
-    streamKeys = [req.query.streamKeys];
-  } else if (Array.isArray(req.query.streamKeys)) {
-    streamKeys = (req.query.streamKeys as any[]).filter(key => typeof key === 'string');
-  }
-
-  // The stopStreamRecordings function now handles sending the response
-  stopStreamRecordings(res, streamKeys);
-});
-
+app.use('/', recordRouter)
 
 const clientHeartbeats = new Map();
 app.post('/heartbeat', (req, res) => {
@@ -84,11 +58,6 @@ app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
 });
 
-app.get('/record/status', (req: Request, res: Response): void => {
-  getStreamRecordingStatus(res);
-});
-
-app.get('/record/updates', handleSseUpdates);
 
 const rtspSourceConfigs = getRtspSourceConfigs();
 // --- WebSocket Server Logic ---
